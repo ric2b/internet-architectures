@@ -1,5 +1,6 @@
 # PyCharm
 __pycache__*
+.idea*
 
 
 # Windows image file caches
