@@ -1,5 +1,5 @@
-from Lab5.CircularList import CircularList
-from Lab5.ClientHistory import ClientHistory
+from CircularList import CircularList
+from ClientHistory import ClientHistory
 
 
 class Group:

@@ -1,7 +1,7 @@
 import pickle
 
-from Lab3.Book import Book
-from Lab3.Author import Author
+from Book import Book
+from Author import Author
 
 
 class Database:

@@ -1,4 +1,4 @@
-from Lab3.Database import Database as Db
+from Database import Database as Db
 
 
 class Client:

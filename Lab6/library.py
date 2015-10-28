@@ -6,7 +6,7 @@ Created on Fri Oct 10 10:02:24 2014
 """
 import pickle
 
-import Lab6.book as book
+import book as book
 
 
 class Library:

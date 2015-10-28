@@ -1,7 +1,7 @@
 import webapp2
 from webapp2_extras import routes
 
-import Lab6.library as library
+import library as library
 
 
 bd = library.Library("mylib")
