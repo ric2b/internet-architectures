@@ -12,7 +12,7 @@ class ChatServer:
         # buffer with all the messages
         self.messages = []
         # condition to indicate that there is new messages
-        self.message_available = Condition
+        self.message_available = Condition()
 
     def register(self):
         # generate unique id for the new user
@@ -37,15 +37,12 @@ class ChatServer:
             while not message:
                 if self.clients[client_id] < len(self.messages):
                     # there is a message available for the client
-                    message = self.messages[self.clients[client_id] - 1]
+                    message = self.messages[self.clients[client_id]]
                     self.clients[client_id] += 1
                 else:
                     self.message_available.wait()
 
         return message
-
-
-
 
 Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
 Pyro4.config.SERIALIZER = 'pickle'
