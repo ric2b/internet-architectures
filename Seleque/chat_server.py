@@ -1,5 +1,6 @@
 from collections import deque
 import uuid
+import Pyro4
 
 
 class ChatServer:
@@ -22,6 +23,14 @@ class ChatServer:
                 return self.clients[client_id].popleft()
             except KeyError:
                 pass
+
+Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+Pyro4.config.SERIALIZER = 'pickle'
+
+daemon = Pyro4.Daemon()
+uri = daemon.register(ChatServer(), 'server')
+print("Ready. Object uri =", uri)
+daemon.requestLoop()
 
 
 
