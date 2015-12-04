@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <title>Books List</title>
+</head>
+
+<body>
+<h1> Book</h1>
+<table>
+    <tr>
+        <td>Author</td>         <td> <input type="text" id="n_author">  </input></td>
+    </tr>
+    <tr>
+        <td>Title</td>         <td> <input type="text" id="n_title"/></td>
+    </tr>
+    <tr>
+        <td>Date</td>         <td> <input type="text" id="n_date"/></td>
+
+    </tr>
+    <tr>
+        <td>
+            <input type="button" value="1" id="rank_1"/>
+            <input type="button" value="2" id="rank_2"/>
+            <input type="button" value="3" id="rank_3"/>
+            <input type="button" value="4" id="rank_4"/>
+            <input type="button" value="5" id="rank_5"/>
+        
+        </td>
+        <td> <input type="text" id="n_score"/></td>
+
+    </tr>
+   
+    <tr>
+        <td> <input type="button" value="update" id="b_update"/></td>
+
+    </tr>
+    
+</table>
+
+
+<script type="text/javascript">
+var elem = document.getElementById("n_author");
+elem.value = "$n_author";
+
+var elem = document.getElementById("n_title");
+elem.value = "$n_title";
+
+var elem = document.getElementById("n_date");
+elem.value = "$n_date";
+
+var elem = document.getElementById("n_score");
+elem.value = "$n_score";
+</script>
+
+
+</body>
+</html>
+
