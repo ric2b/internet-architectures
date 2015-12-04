@@ -27,17 +27,24 @@ class ChatServer:
     def send_message(self, message):
         with self.message_available:
             self.messages.append(message)
-            self.message_available.notifyAll()
+            self.message_available.notify_all()
 
     def receive_message(self, client_id):
 
         with self.message_available:
-            client_last_index = self.clients[client_id]
 
-            while client_last_index < len(self.messages):
-                # there is a message available for the client
-                message = self.messages[self.clients[client_id]]
-                self.message_available.wait()
+            message = None
+            while not message:
+                if self.clients[client_id] < len(self.messages):
+                    # there is a message available for the client
+                    message = self.messages[self.clients[client_id] - 1]
+                    self.clients[client_id] += 1
+                else:
+                    self.message_available.wait()
+
+        return message
+
+
 
 
 Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
