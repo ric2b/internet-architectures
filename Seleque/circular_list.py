@@ -6,7 +6,7 @@ class CircularList:
 
     def __init__(self, size: int):
         self._size = size
-        self._list = [None] * size
+        self._list = [None] * size  # list of self._message_tuple's
         self._newest = -1
         self._message_tuple = namedtuple('message_tuple', 'date contents')
 
@@ -75,7 +75,7 @@ class CircularList:
                 else:
                     raise EOFError('No next data, cool down a bit')
 
-            except AttributeError:
+            except AttributeError:  # The list hasn't yet turned over
                 raise EOFError('No next data, cool down a bit')
         else:
             raise LookupError('Data has been overwritten, sorry for your loss')
@@ -94,7 +94,7 @@ class CircularList:
             while True:
                 index, date, contents = self.get_next(index=index, date=date)
                 messages.append(contents)
-        except EOFError:
+        except EOFError:  # end of the list
             return index, date, messages
 
     def __str__(self):
