@@ -8,20 +8,30 @@ class CircularList:
         self._size = size
         self._list = [None] * size  # list of self._message_tuple's
         self._newest = -1
-        self._message_tuple = namedtuple('message_tuple', 'date contents')
+        self._data_packet = namedtuple('data_packet', 'id contents')
+        self._id_packet = namedtuple('id_packet', 'index id')
 
-    def append(self, message):
+    @staticmethod
+    def data_id():
+        return datetime.now(timezone.utc)
+
+    def append(self, data):
         """
         add a message to the list, returns the corresponding index and date
-        :param message : (?)
+        :param data : (?)
         :return index : (int)
         :return date : (datetime)
         """
-        self._newest = (self._newest + 1) % self._size
-        message_tuple = self._message_tuple(contents=message, date=datetime.now(timezone.utc))
-        self._list[self._newest] = message_tuple
+        new_index = (self._newest + 1) % self._size
+        data_id = self.data_id()
 
-        return self._newest, message_tuple.date
+        data_packet = self._data_packet(id=data_id, contents=data)
+        id_packet = self._id_packet(index=new_index, id=data_id)
+
+        self._list[new_index] = data_packet
+        self._newest = new_index
+
+        return id_packet
 
     def get_newest(self):
         """
@@ -32,7 +42,10 @@ class CircularList:
         """
         if self._newest != -1:
             index = self._newest
-            return index, self._list[index].date, self._list[index].contents
+            data_id = self._list[index].id
+
+            id_packet = self._id_packet(index=index, id=data_id)
+            return id_packet, self._list[index].contents
         else:
             raise LookupError('Message list is still empty')
 
@@ -49,53 +62,59 @@ class CircularList:
             index = 0
 
         try:
-            return index, self._list[index].date, self._list[index].contents
+            data_id = self._list[index].id
+            id_packet = self._id_packet(index=index, id=data_id)
+            return id_packet, self._list[index].contents
         except AttributeError:
             raise LookupError('List is empty')
 
-    def get_next(self, index: int, date: datetime):
+    def get_next(self, id_packet: namedtuple):
         """
         get the message after the given one
-        :param index (int)
-        :param date (datetime)
+        :param id_packet (namedtuple)
         :return: index, date and contents of the next message
         """
-        try:
-            indexed_message = self._list[index]
-        except AttributeError:
-            raise LookupError("Provided index is empty")
 
-        if indexed_message.date == date:  # all good, get the next message
-            next_index = (index + 1) % self._size
-            next_message = self._list[next_index]
+        try:
+            indexed = self._list[id_packet.index]
+        except AttributeError:
+            raise LookupError("Provided index does not exist")
+
+        if indexed.id == id_packet.id:
+            # all good, still have the referenced data, get the next message
+            next_index = (id_packet.index + 1) % self._size
+            next_id = self._list[next_index].id
 
             try:
-                if date < next_message.date:  # the next message is indeed more recent
-                    return next_index, self._list[next_index].date, self._list[next_index].contents
+                if id_packet.id < next_id:  # the next message is indeed more recent
+                    id_packet = self._id_packet(index=next_index, id=next_id)
+                    return id_packet, self._list[next_index].contents
                 else:
-                    raise EOFError('No next data, cool down a bit')
+                    raise EOFError('No new data, cool down a bit')
 
             except AttributeError:  # The list hasn't yet turned over
-                raise EOFError('No next data, cool down a bit')
+                raise EOFError('No new data, cool down a bit')
         else:
             raise LookupError('Data has been overwritten, sorry for your loss')
 
-    def get_since(self, index: int, date: datetime):
+    def get_since(self, id_packet: namedtuple):
         """
         gets all messages since the given one.
         returns the index and date of the latest message and a list with all messages read
 
-        :param index: int
-        :param date: datetime
+        :param id_packet: namedtuple
         :return: index, date, list of message contents
         """
         messages = []
         try:
             while True:
-                index, date, contents = self.get_next(index=index, date=date)
+                id_packet, contents = self.get_next(id_packet)
                 messages.append(contents)
         except EOFError:  # end of the list
-            return index, date, messages
+            if not messages:
+                raise EOFError('No new data, cool down a bit')
+            else:
+                return id_packet, messages
 
     def __str__(self):
         message_contents = []
