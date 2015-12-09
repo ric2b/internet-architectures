@@ -19,8 +19,7 @@ class CircularList:
         """
         add a message to the list, returns the corresponding index and date
         :param data : (?)
-        :return index : (int)
-        :return date : (datetime)
+        :return id_packet : (namedtuple->index, id)
         """
         new_index = (self._newest + 1) % self._size
         data_id = self.data_id()
@@ -36,8 +35,7 @@ class CircularList:
     def get_newest(self):
         """
         get the most recent message on the list
-        :return index : (int)
-        :return date : (datetime)
+        :return id_packet : (namedtuple->index, id)
         :return contents : (?)
         """
         if self._newest != -1:
@@ -52,8 +50,7 @@ class CircularList:
     def get_oldest(self):
         """
         get the oldest message on the list
-        :return index : (int)
-        :return date : (datetime)
+        :return id_packet : (namedtuple->index, id)
         :return contents : (?)
         """
         if self._list[-1] is not None:  # if the list is filled until the last element
@@ -71,8 +68,8 @@ class CircularList:
     def get_next(self, id_packet: namedtuple):
         """
         get the message after the given one
-        :param id_packet (namedtuple)
-        :return: index, date and contents of the next message
+        :param id_packet : (namedtuple->index, id)
+        :return: id_packet and contents of the next message
         """
 
         try:
@@ -102,8 +99,8 @@ class CircularList:
         gets all messages since the given one.
         returns the index and date of the latest message and a list with all messages read
 
-        :param id_packet: namedtuple
-        :return: index, date, list of message contents
+        :param id_packet: (namedtuple->index, id)
+        :return: id_packet, list of message contents
         """
         messages = []
         try:
