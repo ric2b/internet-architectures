@@ -16,6 +16,9 @@ class ClientInformation:
         self.id = id
         self.connection = connection
 
+    def __str__(self):
+        return "Info(id=%s, %s)" % (self.id, "connected" if self.connection else "unconnected")
+
 
 class ChatServer(threading.Thread):
 
