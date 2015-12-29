@@ -88,7 +88,6 @@ class CircularList:
                     id_packet = self._id_packet(index=next_index, id=next_id)
                     return id_packet, self._list[next_index].contents
                 else:
-                    print(next_id)
                     raise EOFError('No new data, cool down a bit')
 
             except AttributeError:  # The list hasn't yet turned over

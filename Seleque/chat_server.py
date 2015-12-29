@@ -6,11 +6,13 @@ from circular_list import CircularList
 
 class ChatServer:
 
+    buffer_size = 4
+
     def __init__(self):
         # each client is associated to the last message he read
         self.clients = {}
         # buffer with all the messages
-        self.messages_buffer = CircularList(4)
+        self.messages_buffer = CircularList(self.buffer_size)
         # condition to indicate that there is new messages
         self.message_available = Condition()
 
@@ -52,10 +54,20 @@ class ChatServer:
         self.clients[client_id] = current_index
         return message
 
-Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
-Pyro4.config.SERIALIZER = 'pickle'
+    def receive_pending(self, client_id):
 
-daemon = Pyro4.Daemon()
-uri = daemon.register(ChatServer(), 'server')
-print("Ready. Object uri =", uri)
-daemon.requestLoop()
+        current_index, message_list = self.messages_buffer.get_since(self.clients[client_id])
+        self.clients[client_id] = current_index
+
+        return message_list
+
+
+if __name__ == "__main__":
+
+    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+    Pyro4.config.SERIALIZER = 'pickle'
+
+    daemon = Pyro4.Daemon()
+    uri = daemon.register(ChatServer(), 'server')
+    print("Ready. Object uri =", uri)
+    daemon.requestLoop()
