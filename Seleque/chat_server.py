@@ -1,4 +1,5 @@
 import socket
+import uuid
 from collections import namedtuple
 
 import Pyro4
@@ -37,7 +38,21 @@ class ChatServer():
         self.listen_socket.listen(5)
 
     def register(self):
-        pass
+        """
+        Registers a new client in the server. It assigns an unique id to the client
+        and returns this id to the client. A client calls this method to obtain an
+        id and to get the server's ip address and port number.
+        :return: the id assign to the client and the server's address.
+        """
+
+        # generate unique id for the new user
+        client_id = uuid.uuid4()
+        # store the client in the set of registered clients
+        self.clients[client_id] = ClientInformation(client_id)
+
+        # TODO implement a timer for the client to establish a TCP connection
+
+        return client_id, self.address.ip_address, self.address.port
 
 if __name__ == "__main__":
 
