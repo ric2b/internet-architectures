@@ -56,7 +56,7 @@ class CircularList:
         if self._list[-1] is not None:  # if the list is filled until the last element
             index = (self._newest + 1) % self._size
         else:
-            index = 0
+            index = 1  # index 0 has the initialization message
 
         try:
             data_id = self._list[index].id
@@ -84,10 +84,11 @@ class CircularList:
             try:
                 next_id = self._list[next_index].id
 
-                if id_packet.id < next_id:  # the next message is indeed more recent
+                if id_packet.id <= next_id:  # the next message is indeed more recent
                     id_packet = self._id_packet(index=next_index, id=next_id)
                     return id_packet, self._list[next_index].contents
                 else:
+                    print(next_id)
                     raise EOFError('No new data, cool down a bit')
 
             except AttributeError:  # The list hasn't yet turned over
@@ -105,14 +106,14 @@ class CircularList:
         """
         messages = []
         try:
-            while True:
+            for index in range(self._size):
                 id_packet, contents = self.get_next(id_packet)
                 messages.append(contents)
         except EOFError:  # end of the list
             if not messages:
                 raise EOFError('No new data, cool down a bit')
-            else:
-                return id_packet, messages
+
+        return id_packet, messages
 
     def __str__(self):
         message_contents = []
