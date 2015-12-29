@@ -10,4 +10,9 @@ my_id = server.register()
 print("My id: ", my_id)
 
 while True:
-    print('received: ', server.receive_message(my_id))
+    try:
+        print('received: ', server.receive_message(my_id))
+    except Exception:
+        print("Pyro traceback:")
+        print("".join(Pyro4.util.getPyroTraceback()))
+        exit()

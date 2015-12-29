@@ -1,5 +1,4 @@
 import Pyro4
-import uuid
 
 Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
 Pyro4.config.SERIALIZER = 'pickle'
