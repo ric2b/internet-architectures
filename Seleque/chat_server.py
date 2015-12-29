@@ -1,4 +1,5 @@
 import socket
+import threading
 import uuid
 from collections import namedtuple
 
@@ -13,7 +14,8 @@ class ClientInformation:
         self.connection = connection
 
 
-class ChatServer():
+class ChatServer(threading.Thread):
+
     def __init__(self):
         super().__init__()
 
@@ -53,6 +55,30 @@ class ChatServer():
         # TODO implement a timer for the client to establish a TCP connection
 
         return client_id, self.address.ip_address, self.address.port
+
+    def run(self):
+
+        """
+        This thread is waiting for new connections and it is responsible for performing
+        the second step of registration of the clients.
+        """
+
+        while True:
+            # wait for a new connection
+            connection, address = self.listen_socket.accept()
+
+            # receive the client's id
+            client_id = connection.recv(1024)
+            client_id = uuid.UUID(client_id.decode())
+
+            # verify if there is a client registered with that id
+            client_info = self.clients[client_id]
+
+            # assign the new connection the client
+            client_info.connection = connection
+
+            print(client_info)
+
 
 if __name__ == "__main__":
 
