@@ -9,6 +9,9 @@ ServerAddress = namedtuple('ServerAddress', ['ip_address', 'port'])
 
 
 class ClientInformation:
+
+    """ Holds all information that might be stored by the server for each client """
+
     def __init__(self, id: int, connection: socket = None):
         self.id = id
         self.connection = connection
@@ -44,6 +47,7 @@ class ChatServer(threading.Thread):
         Registers a new client in the server. It assigns an unique id to the client
         and returns this id to the client. A client calls this method to obtain an
         id and to get the server's ip address and port number.
+
         :return: the id assign to the client and the server's address.
         """
 
@@ -57,7 +61,6 @@ class ChatServer(threading.Thread):
         return client_id, self.address.ip_address, self.address.port
 
     def run(self):
-
         """
         This thread is waiting for new connections and it is responsible for performing
         the second step of registration of the clients.
@@ -68,24 +71,35 @@ class ChatServer(threading.Thread):
             connection, address = self.listen_socket.accept()
 
             # receive the client's id
-            client_id = connection.recv(1024)
+            client_id = connection.recv(32)
             client_id = uuid.UUID(client_id.decode())
 
-            # verify if there is a client registered with that id
-            client_info = self.clients[client_id]
+            try:
+                # verify if there is a client registered with that id
+                client_info = self.clients[client_id]
 
-            # assign the new connection the client
-            client_info.connection = connection
+                # assign the new connection the client
+                client_info.connection = connection
 
-            print(client_info)
+                # notify the client that the registration was successful
+                connection.send("OK".encode())
+
+                print(client_info)
+
+            except KeyError:
+                # there is no client with the provided id
+                connection.send("ERROR".encode())
 
 
 if __name__ == "__main__":
+
+    chat_server = ChatServer()
+    chat_server.start()
 
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
     daemon = Pyro4.Daemon()
-    uri = daemon.register(ChatServer(), 'server')
+    uri = daemon.register(chat_server, 'server')
     print("Ready. Object uri =", uri)
     daemon.requestLoop()

@@ -38,6 +38,13 @@ class Client:
         # register in the server by providing the client assigned id
         self.connection.send(self.id.hex.encode())
 
+        # wait for the server acknowledge
+        ack = self.connection.recv(32).decode()
+        if ack == "OK":
+            print("register OK")
+        else:
+            print("register FAILED")
+
     def send_message(self, message: str):
         pass
 
