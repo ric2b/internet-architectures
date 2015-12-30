@@ -1,7 +1,7 @@
 import socket
 import Pyro4
 
-from chat_server import ServerAddress
+from chat_server import Address
 
 Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
 Pyro4.config.SERIALIZER = 'pickle'
@@ -30,7 +30,7 @@ class Client:
         # call the register method of the server to obtain an id and the server's address
         response = self.server.register()
         self.id = response[0]
-        server_address = ServerAddress(response[1], response[2])
+        server_address = Address(response[1], response[2])
 
         # establish a TCP connection with the server
         self.connection = socket.socket()

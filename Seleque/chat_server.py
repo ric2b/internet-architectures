@@ -6,7 +6,7 @@ from collections import namedtuple
 import Pyro4
 from circular_list import CircularList, PacketId
 
-ServerAddress = namedtuple('ServerAddress', ['ip_address', 'port'])
+Address = namedtuple('Address', ['ip_address', 'port'])
 ClientInformation = namedtuple('ClientInformation', ['id', 'message_id', 'connection'])
 
 # set pickle as the serializer used by pyro
@@ -14,8 +14,8 @@ Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
 Pyro4.config.SERIALIZER = 'pickle'
 
 
-class ChatServer():
-    def __init__(self, address: ServerAddress, buffer_size):
+class ChatServer:
+    def __init__(self, address: Address, buffer_size):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
         mapping the clients ids to their information. Registers the server in the
@@ -51,6 +51,8 @@ class ChatServer():
         # register the client id but keep the client information empty
         # the client information will be stored after the clients registers
         self.clients[client_id] = None
+
+        return client_id, self.address
 
     def send_message(self, message):
         """

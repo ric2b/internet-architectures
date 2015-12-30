@@ -1,42 +1,30 @@
+import socket
 from unittest import TestCase
-from chat_server import ChatServer
-
-
-class TestChatServerSetUp(TestCase):
-    def test_register(self):
-        self.server = ChatServer(4)
-        self.assertNotEqual(self.server.register(), self.server.register())
+from chat_server import ChatServer, Address
 
 
 class TestChatServer(TestCase):
+    def __init__(self, *args, **kwargs):
+        super(TestChatServer, self).__init__(*args, **kwargs)
 
-    messages = ["Gentlemen, you can't fight in here! This is the War Room!",
-                "Man who catch fly with chopstick accomplish anything.",
-                "If you build it, he will come.",
-                "I'm gonna make him an offer he can't refuse.",
-                "Life is a box of chocolates, Forrest. You never know what you're gonna get."
-                ]
+        # create a chat server
+        self.address = Address(socket.gethostname(), socket.htons(5000))
+        self.server = ChatServer(self.address, 5)
 
-    def setUp(self):
-        self.server = ChatServer(4)
-        self.my_id = self.server.register()
+    def test_request_id(self):
+        """
+        Tests the request_id method. It calls the method and prints the returned
+        client id and verifies if the address returned is the same as the server's.
+        It also verifies if the id was registered in the clients dictionary.
+        """
 
-    def test_send_message(self):
-        self.server.send_message(self.messages[1])
+        client_id, address = self.server.request_id()
 
-        self.assertEqual(self.server.receive_pending(self.my_id), [self.messages[1]])
-
-    def test_receive_pending(self):
-        for i in range(4):
-            self.server.send_message(self.messages[i])
-
-        self.assertEqual(self.server.receive_pending(self.my_id), self.messages[:4])
-
-    def test_receive_pending_empty(self):
-        with self.assertRaises(LookupError):
-            self.server.receive_pending(self.my_id)
-
-
-
-
+        print(client_id)
+        # the returned address must be the same of the server
+        self.assertEqual(self.address, address)
+        # the clients dictionary must have only one client id reserved with
+        # no client information
+        self.assertEqual(len(self.server.clients), 1)
+        self.assertIsNone(self.server.clients[client_id])
 
