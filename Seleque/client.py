@@ -41,7 +41,7 @@ class Client:
         connection.connect((server_address.ip_address, server_address.port))
 
         # register in the server by providing the client assigned id
-        connection.send(client_id.encode())
+        connection.send(client_id.hex.encode())
 
         # wait for the server acknowledge
         ack = connection.recv(32).decode()
