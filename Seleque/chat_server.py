@@ -1,22 +1,12 @@
 import socket
 import uuid
+from collections import namedtuple
+
 import Pyro4
 from circular_list import CircularList, PacketId
 
-
-class ClientInformation:
-
-    """ Holds all information that might be stored by the server for each client """
-
-    def __init__(self, id: int, last_packetid: PacketId, connection: socket = None):
-        self.id = id
-        self.last_packetid = last_packetid
-        self.connection = connection
-
-    def __str__(self):
-        return "Info(id=%s, packet_id=%s, %s)" % (self.id,
-                                                  self.last_packetid,
-                                                  "connected" if self.connection else "unconnected")
+ServerAddress = namedtuple('ServerAddress', ['ip_address', 'port'])
+ClientInformation = namedtuple('ClientInformation', ['id', 'packet_id', 'connection'])
 
 
 class ChatServer:
@@ -27,6 +17,22 @@ class ChatServer:
         self.clients = {}
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
+
+        # create the listening socket #
+
+        # create a socket to listen for new connections
+        self.listen_socket = socket.socket()
+
+        # DEBUG this function allows a port number to be used right after the
+        # application terminates
+        self.listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        # bind the socket to the any interface and the port number 5000
+        self.address = ServerAddress(socket.gethostname(), socket.htons(5000))
+        self.listen_socket.bind((self.address.ip_address, self.address.port))
+
+        # put the socket in listening mode
+        self.listen_socket.listen(5)
 
     def register(self):
         # generate unique id for the new user
