@@ -14,7 +14,11 @@ class TestChatServer(TestCase):
                 "Man who catch fly with chopstick accomplish anything.",
                 "If you build it, he will come.",
                 "I'm gonna make him an offer he can't refuse.",
-                "Life is a box of chocolates, Forrest. You never know what you're gonna get."
+                "Life is a box of chocolates, Forrest. You never know what you're gonna get.",
+                "Nobody puts Baby in a corner.",
+                "The cold never bothered me anyway.",
+                "Well, what if there is no tomorrow? There wasn't one today.",
+                "You talkin' to me?"
                 ]
 
     def setUp(self):
