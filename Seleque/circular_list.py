@@ -2,10 +2,33 @@ from datetime import datetime, timezone
 from collections import namedtuple
 
 
+class PacketId:
+    # ASSUMING THE INDEX IS THE SAME
+    def __init__(self, turns):
+        # having both is more robust
+        self.date = datetime.now(timezone.utc)
+        self.turns = turns
+
+    def __eq__(self, other):
+        if self.turns == other.turns:
+            if self.date == other.date:  # just in case 'turns' overflowed
+                return True
+
+        return False
+
+    def __le__(self, other):
+        if self.turns <= other.turns:
+            if self.date <= other.date:
+                return True
+
+        return False
+
+
 class CircularList:
 
     def __init__(self, size: int):
         self._size = size
+        self._turns = 0
         self._list = [None] * size  # list of self._message_tuple's
         self._newest = -1
         self._data_packet = namedtuple('data_packet', 'id contents')
@@ -13,9 +36,8 @@ class CircularList:
 
         self.append('Buffer created')  # Trust me, this simplifies lots of stuff :)
 
-    @staticmethod
-    def data_id():
-        return datetime.now(timezone.utc)
+    def data_id(self):
+        return PacketId(self._turns)
 
     def append(self, data):
         """
@@ -25,6 +47,9 @@ class CircularList:
         """
         new_index = (self._newest + 1) % self._size
         data_id = self.data_id()
+
+        if self._newest + 1 == self._size:
+            self._turns = (self._turns + 1) % self._size
 
         data_packet = self._data_packet(id=data_id, contents=data)
         id_packet = self._id_packet(index=new_index, id=data_id)
@@ -53,10 +78,10 @@ class CircularList:
         :return id_packet : (namedtuple->index, id)
         :return contents : (?)
         """
-        if self._list[-1] is not None:  # if the list is filled until the last element
+        if self._turns:  # if the list is filled until the last element
             index = (self._newest + 1) % self._size
         else:
-            index = 1  # index 0 has the initialization message
+            index = 0  # index 0 has the initialization message
 
         try:
             data_id = self._list[index].id
@@ -80,6 +105,10 @@ class CircularList:
         if indexed.id == id_packet.id:
             # all good, still have the referenced data, get the next message
             next_index = (id_packet.index + 1) % self._size
+
+            if next_index == 0:
+                if indexed.id.turns <= self._turns:
+                    raise EOFError('No new data, cool down a bit')
 
             try:
                 next_id = self._list[next_index].id
