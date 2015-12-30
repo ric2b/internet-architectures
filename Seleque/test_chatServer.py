@@ -10,8 +10,7 @@ class TestChatServerSetUp(TestCase):
 
 class TestChatServer(TestCase):
 
-    messages = ["Buffer created",
-                "Gentlemen, you can't fight in here! This is the War Room!",
+    messages = ["Gentlemen, you can't fight in here! This is the War Room!",
                 "Man who catch fly with chopstick accomplish anything.",
                 "If you build it, he will come.",
                 "I'm gonna make him an offer he can't refuse.",
@@ -28,17 +27,17 @@ class TestChatServer(TestCase):
         self.assertEqual(self.server.receive_message(self.my_id), self.messages[1])
 
     def test_receive_message(self):
-        for i in range(1, 4):
+        for i in range(4):
             self.server.send_message(self.messages[i])
 
-        for i in range(1, 4):
+        for i in range(4):
             self.assertEqual(self.server.receive_message(self.my_id), self.messages[i])
 
     def test_receive_pending(self):
-        for i in range(1, 4):
-             self.server.send_message(self.messages[i])
+        for i in range(4):
+            self.server.send_message(self.messages[i])
 
-        self.assertEqual(self.server.receive_pending(self.my_id), self.messages[1:4])
+        self.assertEqual(self.server.receive_pending(self.my_id), self.messages[:4])
 
 
 
