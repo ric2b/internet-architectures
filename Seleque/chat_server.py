@@ -1,4 +1,5 @@
 import socket
+import threading
 import uuid
 from collections import namedtuple
 
@@ -6,16 +7,19 @@ import Pyro4
 from circular_list import CircularList, PacketId
 
 ServerAddress = namedtuple('ServerAddress', ['ip_address', 'port'])
-ClientInformation = namedtuple('ClientInformation', ['id', 'packet_id', 'connection'])
+ClientInformation = namedtuple('ClientInformation', ['id', 'message_id', 'connection'])
+
+# set pickle as the serializer used by pyro
+Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+Pyro4.config.SERIALIZER = 'pickle'
 
 
-class ChatServer:
-
+class ChatServer():
     def __init__(self, address: ServerAddress, buffer_size):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
-        mapping the clients ids to their information. Creates a listening socket
-        bound to the given server address.
+        mapping the clients ids to their information. Registers the server in the
+        pyro daemon.
 
         :param address: the complete address for the server to bound to.
         :param buffer_size: the size of the message buffer.
@@ -29,20 +33,9 @@ class ChatServer:
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
 
-        # create the listening socket #
-
-        # create a socket to listen for new connections
-        self.listen_socket = socket.socket()
-
-        # DEBUG this function allows a port number to be used right after the
-        # application terminates
-        self.listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        # bind the socket to the any interface and the port number 5000
-        self.listen_socket.bind((self.address.ip_address, self.address.port))
-
-        # put the socket in listening mode
-        self.listen_socket.listen(5)
+        # register the server in the pyro daemon
+        self.daemon = Pyro4.Daemon()
+        self.uri = self.daemon.register(self, 'server')
 
     def request_id(self):
         """
@@ -102,13 +95,71 @@ class ChatServer:
 
         return message_list
 
+    def start_loop(self):
+        """
+        Starts the chat server putting it in a loop waiting for new requests.
+        """
 
-if __name__ == "__main__":
+        chat_manager = threading.Thread(target=self._register)
 
-    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
-    Pyro4.config.SERIALIZER = 'pickle'
+        chat_manager.start()
+        self.daemon.requestLoop()
 
-    daemon = Pyro4.Daemon()
-    uri = daemon.register(ChatServer(4), 'server')
-    print("Ready. Object uri =", uri)
-    daemon.requestLoop()
+    def _register(self):
+        """
+        Creates a listening socket bound the server address, to listen for new
+        connections from clients that want to register in the server. When there
+        is a new connection it tries to register the client.
+        """
+
+        # create a socket to listen for new connections
+        listen_socket = socket.socket()
+
+        # DEBUG this function allows a port number to be used right after the
+        # application terminates
+        listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+        # bind the socket to the any interface and the port number 5000
+        listen_socket.bind((self.address.ip_address, self.address.port))
+
+        # put the socket in listening mode
+        listen_socket.listen(5)
+
+        while True:
+            # wait for a new connection
+            connection, address = listen_socket.accept()
+
+            # receive the client's id
+            client_id = connection.recv(32)
+            client_id = uuid.UUID(client_id.decode())
+
+            try:
+                # get the client information for the given id.
+                # this must be done explicitly in order to be raised a KeyError if the
+                # the id does not exist
+                client_info = self.clients[client_id]
+
+                # a new user only receives messages that are sent after registering:
+                # => the client must store the id of the current last message in the message buffer
+                try:
+                    # get the last message id
+                    last_message_id = self.messages_buffer.get_newest()[0]
+                except AttributeError:
+                    # TODO change the raised exception to an LookupError
+                    # there was no messages in the message buffer yet
+                    # do not store any packet id
+                    last_message_id = None
+
+                self.clients[client_id] = ClientInformation(id=client_id,
+                                                            message_id=last_message_id,
+                                                            connection=connection)
+
+                # notify the client that the registration was successful
+                connection.send("OK".encode())
+
+                # DEBUG message
+                print(client_info)
+
+            except KeyError:
+                # there is no client with the provided id
+                connection.send("ERROR".encode())
