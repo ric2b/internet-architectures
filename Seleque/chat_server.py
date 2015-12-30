@@ -63,6 +63,40 @@ class ChatServer(threading.Thread):
 
         return client_id, self.address.ip_address, self.address.port
 
+    def send_message(self, message):
+        """
+        Sends a message to all the clients in the server. When a client sends a message,
+        all the clients in the chat server are notified. Clients with broken connections
+        are removed from the server.
+        """
+
+        # store the message in the message queue
+        print(message)
+
+        # notify all clients of a new message
+        clients_to_remove = []
+        for client_info in self.clients.values():
+            try:
+                client_info.connection.send("NEW MESSAGE".encode())
+            except BrokenPipeError:
+                # this client has a broken connection
+                client_info.connection.close()
+                clients_to_remove.append(client_info.id)
+
+        # remove the clients with broken connections
+        for client_id in clients_to_remove:
+            del self.clients[client_id]
+
+        print(self.clients.keys())
+
+    def recv_message(self) -> str:
+        """
+        Returns the next message in the message queue for each client.
+        :return: next message in the message queue.
+        """
+
+        return "message received"
+
     def run(self):
         """
         This thread is waiting for new connections and it is responsible for performing
