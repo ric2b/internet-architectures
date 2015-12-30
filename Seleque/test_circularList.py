@@ -1,5 +1,4 @@
 from unittest import TestCase
-from time import sleep
 
 from circular_list import CircularList, PacketId
 
@@ -25,8 +24,7 @@ class TestPacketID(TestCase):
 
 class TestCircularList(TestCase):
 
-    messages = ["Buffer created",
-                "Gentlemen, you can't fight in here! This is the War Room!",
+    messages = ["Gentlemen, you can't fight in here! This is the War Room!",
                 "Man who catch fly with chopstick accomplish anything.",
                 "If you build it, he will come.",
                 "I'm gonna make him an offer he can't refuse.",
@@ -34,8 +32,6 @@ class TestCircularList(TestCase):
                 ]
 
     buffer_size = 4
-    # Assume the buffer is large enough that it won't be overwritten in a millisecond
-    ignore_timing = False
 
     def setUp(self):
         self.buffer = CircularList(self.buffer_size)
@@ -52,21 +48,16 @@ class TestCircularList(TestCase):
         self.assertEqual(self.buffer.get_newest()[1], self.messages[2])
 
     def test_get_oldest(self):
+        self.buffer.append(self.messages[0])
         self.buffer.append(self.messages[1])
-        self.buffer.append(self.messages[2])
 
         self.assertEqual(self.buffer.get_oldest()[1], self.messages[0])
 
     def test_get_oldest_overwritten(self):
-        self.buffer.append(self.messages[1])
-        self.buffer.append(self.messages[2])
-        self.buffer.append(self.messages[3])
-        if self.ignore_timing:
-            sleep(0.01)
-        self.buffer.append(self.messages[4])
-        self.buffer.append(self.messages[5])
+        for i in range(5):
+            self.buffer.append(self.messages[i])
 
-        self.assertEqual(self.buffer.get_oldest()[1], self.messages[2])
+        self.assertEqual(self.buffer.get_oldest()[1], self.messages[1])
 
     def test_get_next(self):
         id_packet = self.buffer.append(self.messages[1])
@@ -82,7 +73,7 @@ class TestCircularList(TestCase):
 
     def test_get_next_bufferFull(self):
         id_packet = self.buffer.get_oldest()
-        for i in range(self.buffer_size-1):
+        for i in range(self.buffer_size):
             id_packet = self.buffer.append(self.messages[i])
 
         with self.assertRaises(EOFError):
@@ -93,14 +84,13 @@ class TestCircularList(TestCase):
         for i in range(self.buffer_size):
             self.buffer.append(self.messages[i])
 
+        print(self.buffer._list[0].id.turns, id_packet.id.turns)
+
         with self.assertRaises(LookupError):
             self.buffer.get_next(id_packet)
 
     def test_get_since(self):
         id_packet = self.buffer.append(self.messages[1])
-        if self.ignore_timing:
-            sleep(0.01)
-
         self.buffer.append(self.messages[2])
         self.buffer.append(self.messages[3])
 
@@ -110,10 +100,8 @@ class TestCircularList(TestCase):
         with self.assertRaises(EOFError):
             self.buffer.get_since(new_id_packet)
 
-    def test_get_since_EOF(self):
+    def test_get_since_overwritten(self):
         id_packet = self.buffer.append(self.messages[1])
-        if self.ignore_timing:
-            sleep(0.01)
 
         for i in range(1, 5):
             self.buffer.append(self.messages[i])

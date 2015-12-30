@@ -34,7 +34,7 @@ class CircularList:
         self._data_packet = namedtuple('data_packet', 'id contents')
         self._id_packet = namedtuple('id_packet', 'index id')
 
-        self.append('Buffer created')  # Trust me, this simplifies lots of stuff :)
+        # self.append('Buffer created')  # Trust me, this simplifies lots of stuff :)
 
     def data_id(self):
         return PacketId(self._turns)
@@ -46,10 +46,10 @@ class CircularList:
         :return id_packet : (namedtuple->index, id)
         """
         new_index = (self._newest + 1) % self._size
-        data_id = self.data_id()
-
         if self._newest + 1 == self._size:
             self._turns = (self._turns + 1) % self._size
+
+        data_id = self.data_id()
 
         data_packet = self._data_packet(id=data_id, contents=data)
         id_packet = self._id_packet(index=new_index, id=data_id)
@@ -81,7 +81,7 @@ class CircularList:
         if self._turns:  # if the list is filled until the last element
             index = (self._newest + 1) % self._size
         else:
-            index = 0  # index 0 has the initialization message
+            index = 0
 
         try:
             data_id = self._list[index].id
@@ -96,6 +96,9 @@ class CircularList:
         :param id_packet : (namedtuple->index, id)
         :return: id_packet and contents of the next message
         """
+
+        if id_packet is None:
+            return self.get_oldest()
 
         try:
             indexed = self._list[id_packet.index]
