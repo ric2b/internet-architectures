@@ -7,7 +7,25 @@ import Pyro4
 from circular_list import CircularList, PacketId
 
 Address = namedtuple('Address', ['ip_address', 'port'])
-ClientInformation = namedtuple('ClientInformation', ['id', 'message_id', 'connection'])
+
+
+class ClientInformation:
+
+    """
+    Holds all information that might be stored by the server for each client.
+    This must be a class and not a namedtuple because they are immutable and the attributes
+    can not be altered.
+    """
+
+    def __init__(self, id: int, message_id: PacketId, connection: socket = None):
+        self.id = id
+        self.message_id = message_id
+        self.connection = connection
+
+    def __str__(self):
+        return "Info(id=%s, packet_id=%s, %s)" % (self.id,
+                                                  self.message_id,
+                                                  "connected" if self.connection else "unconnected")
 
 
 class ChatServer:
@@ -93,7 +111,7 @@ class ChatServer:
 
         client_info = self.clients[client_id]
         current_index, message_list = self.messages_buffer.get_since(client_info.message_id)
-        self.clients[client_id] = current_index
+        self.clients[client_id].message_id = current_index
 
         return message_list
 
