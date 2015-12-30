@@ -16,6 +16,7 @@ class ChatServer:
         Initializes the messages buffer. Creates an empty dictionary with all the
         mapping the clients ids to their information. Creates a listening socket
         bound to the given server address.
+
         :param address: the complete address for the server to bound to.
         :param buffer_size: the size of the message buffer.
         """
@@ -43,13 +44,13 @@ class ChatServer:
         # put the socket in listening mode
         self.listen_socket.listen(5)
 
-    def register(self):
+    def request_id(self):
         """
-        Registers a new client in the server. It assigns an unique id to the client
-        and returns this id to the client. A client calls this method to obtain an
-        id and to get the server's ip address and port number.
+        Requests the server for a unique client id. The server will generate the
+        id and return it to the client along with its address. The returned id
+        and address are required for a client to register to the server.
 
-        :return: the id assign to the client and the server's address.
+        :return: client id and the server's address.
         """
 
         # generate unique id for the new user
@@ -67,7 +68,7 @@ class ChatServer:
             # do not store any packet id
             self.clients[client_id] = ClientInformation(id=client_id)
 
-        return client_id
+        return client_id, self.address.ip_address, self.address.port
 
     def send_message(self, message):
         self.messages_buffer.append(message)
