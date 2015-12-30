@@ -9,10 +9,6 @@ from circular_list import CircularList, PacketId
 Address = namedtuple('Address', ['ip_address', 'port'])
 ClientInformation = namedtuple('ClientInformation', ['id', 'message_id', 'connection'])
 
-# set pickle as the serializer used by pyro
-Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
-Pyro4.config.SERIALIZER = 'pickle'
-
 
 class ChatServer:
     def __init__(self, address: Address, buffer_size):
@@ -33,6 +29,9 @@ class ChatServer:
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
 
+        # set pickle as the serializer used by pyro
+        Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+        Pyro4.config.SERIALIZER = 'pickle'
         # register the server in the pyro daemon
         self.daemon = Pyro4.Daemon()
         self.uri = self.daemon.register(self, 'server')
