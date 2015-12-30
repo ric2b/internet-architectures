@@ -91,7 +91,8 @@ class ChatServer:
         :return: list with the next messages in the message queue.
         """
 
-        current_index, message_list = self.messages_buffer.get_since(self.clients[client_id])
+        client_info = self.clients[client_id]
+        current_index, message_list = self.messages_buffer.get_since(client_info.message_id)
         self.clients[client_id] = current_index
 
         return message_list
@@ -135,32 +136,29 @@ class ChatServer:
             client_id = uuid.UUID(client_id.decode())
 
             try:
-                # get the client information for the given id.
-                # this must be done explicitly in order to be raised a KeyError if the
-                # the id does not exist
-                client_info = self.clients[client_id]
-
-                # a new user only receives messages that are sent after registering:
-                # => the client must store the id of the current last message in the message buffer
-                try:
-                    # get the last message id
-                    last_message_id = self.messages_buffer.get_newest()[0]
-                except AttributeError:
-                    # TODO change the raised exception to an LookupError
-                    # there was no messages in the message buffer yet
-                    # do not store any packet id
-                    last_message_id = None
-
-                self.clients[client_id] = ClientInformation(id=client_id,
-                                                            message_id=last_message_id,
-                                                            connection=connection)
-
-                # notify the client that the registration was successful
-                connection.send("OK".encode())
-
-                # DEBUG message
-                print(client_info)
-
+                self._register_client(client_id, connection)
             except KeyError:
                 # there is no client with the provided id
                 connection.send("ERROR".encode())
+            else:
+                # notify the client that the registration was successful
+                connection.send("OK".encode())
+
+    def _register_client(self, client_id, connection):
+
+        # if the client_id does not exist then the registration is not valid
+        if client_id not in self.clients:
+            raise KeyError
+
+        # a new user only receives messages that are sent after registering:
+        # => the client must store the id of the current last message in the message buffer
+        try:
+            # get the last message id
+            last_message_id = self.messages_buffer.get_newest()[0]
+        except AttributeError:
+            # TODO change the raised exception to an LookupError
+            # there was no messages in the message buffer yet
+            # do not store any packet id
+            last_message_id = None
+
+        self.clients[client_id] = ClientInformation(id=client_id, message_id=last_message_id, connection=connection)
