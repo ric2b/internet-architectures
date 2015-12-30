@@ -6,9 +6,8 @@ from circular_list import CircularList
 
 class ChatServer:
 
-    buffer_size = 4
-
-    def __init__(self):
+    def __init__(self, buffer_size):
+        self.buffer_size = buffer_size
         # each client is associated to the last message he read
         self.clients = {}
         # buffer with all the messages
@@ -35,28 +34,6 @@ class ChatServer:
             self.messages_buffer.append(message)
             self.message_available.notify_all()
 
-    def receive_message(self, client_id):
-
-        with self.message_available:
-
-            current_index = self.clients[client_id]
-
-            message = None
-            while not message:
-                try:
-                    current_index, message = self.messages_buffer.get_next(current_index)
-
-                except EOFError:
-                    self.message_available.wait()
-
-                except LookupError:
-                    # Data was lost
-                    print('WARNING: TEMPORARY SOLUTION. This should fetch every message '
-                          'because data was overwritten (receive_message)')
-
-        self.clients[client_id] = current_index
-        return message
-
     def receive_pending(self, client_id):
 
         current_index, message_list = self.messages_buffer.get_since(self.clients[client_id])
@@ -71,6 +48,6 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZER = 'pickle'
 
     daemon = Pyro4.Daemon()
-    uri = daemon.register(ChatServer(), 'server')
+    uri = daemon.register(ChatServer(4), 'server')
     print("Ready. Object uri =", uri)
     daemon.requestLoop()

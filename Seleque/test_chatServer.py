@@ -4,7 +4,7 @@ from chat_server import ChatServer
 
 class TestChatServerSetUp(TestCase):
     def test_register(self):
-        self.server = ChatServer()
+        self.server = ChatServer(4)
         self.assertNotEqual(self.server.register(), self.server.register())
 
 
@@ -18,20 +18,13 @@ class TestChatServer(TestCase):
                 ]
 
     def setUp(self):
-        self.server = ChatServer()
+        self.server = ChatServer(4)
         self.my_id = self.server.register()
 
     def test_send_message(self):
         self.server.send_message(self.messages[1])
 
-        self.assertEqual(self.server.receive_message(self.my_id), self.messages[1])
-
-    def test_receive_message(self):
-        for i in range(4):
-            self.server.send_message(self.messages[i])
-
-        for i in range(4):
-            self.assertEqual(self.server.receive_message(self.my_id), self.messages[i])
+        self.assertEqual(self.server.receive_pending(self.my_id), [self.messages[1]])
 
     def test_receive_pending(self):
         for i in range(4):
@@ -39,6 +32,9 @@ class TestChatServer(TestCase):
 
         self.assertEqual(self.server.receive_pending(self.my_id), self.messages[:4])
 
+    def test_receive_pending_empty(self):
+        with self.assertRaises(LookupError):
+            self.server.receive_pending(self.my_id)
 
 
 
