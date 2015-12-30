@@ -23,7 +23,10 @@ class ChatServer:
         # a new user only receives messages that are sent after he registers
         # assign to the user the index of the last message
 
-        self.clients[client_id] = self.messages_buffer.get_newest()[0]
+        try:
+            self.clients[client_id] = self.messages_buffer.get_newest()[0]
+        except AttributeError:
+            self.clients[client_id] = None
 
         return client_id
 

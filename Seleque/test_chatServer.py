@@ -1,6 +1,6 @@
 from unittest import TestCase
 from chat_server import ChatServer
-from time import sleep
+
 
 class TestChatServerSetUp(TestCase):
     def test_register(self):
@@ -36,8 +36,7 @@ class TestChatServer(TestCase):
 
     def test_receive_pending(self):
         for i in range(1, 4):
-            sleep(0.1)
-            self.server.send_message(self.messages[i])
+             self.server.send_message(self.messages[i])
 
         self.assertEqual(self.server.receive_pending(self.my_id), self.messages[1:4])
 
