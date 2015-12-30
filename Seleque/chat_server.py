@@ -18,8 +18,7 @@ class ChatServer:
     def __init__(self, address: Address, buffer_size):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
-        mapping the clients ids to their information. Registers the server in the
-        pyro daemon.
+        mapping the clients ids to their information.
 
         :param address: the complete address for the server to bound to.
         :param buffer_size: the size of the message buffer.
@@ -27,15 +26,12 @@ class ChatServer:
 
         self.address = address
         self.buffer_size = buffer_size
+        self.uri = None
 
         # each client is associated to the last message he read
         self.clients = {}
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
-
-        # register the server in the pyro daemon
-        self.daemon = Pyro4.Daemon()
-        self.uri = self.daemon.register(self, 'server')
 
     def request_id(self):
         """
@@ -102,7 +98,10 @@ class ChatServer:
         Starts the chat server putting it in a loop waiting for new requests.
         """
         self.start_register()
-        self.daemon.requestLoop()
+        # register the server in the pyro daemon
+        daemon = Pyro4.Daemon()
+        self.uri = daemon.register(self, 'server')
+        daemon.requestLoop()
 
     def start_register(self):
         threading.Thread(target=self._register).start()
