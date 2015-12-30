@@ -89,6 +89,13 @@ class ChatServer:
             del self.clients[client_id]
 
     def receive_pending(self, client_id):
+        """
+        Returns a list with all the messages in the message queue that the client
+        has not received.
+
+        :param client_id: id of the client requesting the messages.
+        :return: list with the next messages in the message queue.
+        """
 
         current_index, message_list = self.messages_buffer.get_since(self.clients[client_id])
         self.clients[client_id] = current_index
