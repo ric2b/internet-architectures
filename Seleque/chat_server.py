@@ -1,6 +1,5 @@
 import uuid
 import Pyro4
-from threading import Condition
 from circular_list import CircularList
 
 
@@ -12,8 +11,6 @@ class ChatServer:
         self.clients = {}
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
-        # condition to indicate that there is new messages
-        self.message_available = Condition()
 
     def register(self):
         # generate unique id for the new user
@@ -30,9 +27,7 @@ class ChatServer:
         return client_id
 
     def send_message(self, message):
-        with self.message_available:
-            self.messages_buffer.append(message)
-            self.message_available.notify_all()
+        self.messages_buffer.append(message)
 
     def receive_pending(self, client_id):
 
