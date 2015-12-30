@@ -53,6 +53,10 @@ class TestCircularList(TestCase):
 
         self.assertEqual(self.buffer.get_oldest()[1], self.messages[0])
 
+    def test_get_oldest_empty(self):
+        with self.assertRaises(LookupError):
+            self.buffer.get_oldest()
+
     def test_get_oldest_overwritten(self):
         for i in range(5):
             self.buffer.append(self.messages[i])
@@ -65,6 +69,10 @@ class TestCircularList(TestCase):
 
         self.assertEqual(self.buffer.get_next(id_packet)[1], self.messages[2])
 
+    def test_get_next_empty(self):
+        with self.assertRaises(LookupError):
+            self.buffer.get_next(None)
+
     def test_get_next_isLast(self):
         id_packet = self.buffer.append(self.messages[1])
 
@@ -72,7 +80,7 @@ class TestCircularList(TestCase):
             self.buffer.get_next(id_packet)
 
     def test_get_next_bufferFull(self):
-        id_packet = self.buffer.get_oldest()
+        id_packet = None
         for i in range(self.buffer_size):
             id_packet = self.buffer.append(self.messages[i])
 
@@ -83,8 +91,6 @@ class TestCircularList(TestCase):
         id_packet = self.buffer.append(self.messages[1])
         for i in range(self.buffer_size):
             self.buffer.append(self.messages[i])
-
-        print(self.buffer._list[0].id.turns, id_packet.id.turns)
 
         with self.assertRaises(LookupError):
             self.buffer.get_next(id_packet)
