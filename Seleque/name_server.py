@@ -1,6 +1,22 @@
 import uuid
 
 
+class RoomInfo:
+    def __init__(self, name):
+        self.name = name
+        self.clients = {}
+        self.servers = []
+
+    def add_server(self, server_index):
+        self.servers.append(server_index)
+
+    def add_client(self, client, server_address):
+        self.clients[client] = server_address
+
+    def __eq__(self, other):
+        return True if self.clients == other.clients and self.servers == other.servers else False
+
+
 class ServerInfo:
     def __init__(self, address):
         self.address = address
@@ -8,23 +24,39 @@ class ServerInfo:
         self.rooms = []
 
     def create_room(self, room):
-        raise NotImplementedError
+        return
 
     def add_client(self, client, room):
-        raise NotImplementedError
+        return
+
+    def __eq__(self, other):
+        return True if self.address == other.address and self.clients == other.clients \
+                       and self.rooms == other.rooms else False
 
 
 class NameServer:
 
     def __init__(self, room_size):
-        self.rooms = []
+        self.rooms = {}
         self.room_size = room_size
         self.servers = []
         self._next_server = 0
         self.clients = {}
 
+    def register_server(self, address):
+        for server in self.servers:
+            if server.address == address:
+                raise ValueError('Server already registered')
+
+        self.servers.append(ServerInfo(address))
+
+    def list_servers(self):
+        servers = []
+        for server in self.servers:
+            servers.append(server.address)
+
     def list_rooms(self):
-        return self.rooms
+        return set(self.rooms.keys())
 
     def create_room(self, room_name):
         try:
@@ -41,23 +73,27 @@ class NameServer:
         return server.address
 
     def join_room(self, room_name):
-        if room_name in self.rooms:
-            for server in self.rooms[room_name].servers:
-                if server.clients < self.room_size:
-                    return server.address
+        if room_name in self.rooms:  # If the room is already created
+            # look over the servers for the room
+            for server_address in self.rooms[room_name].servers:
+                for server in self.servers:
+                    if server.address == server_address:
+                        # if any has less than self.room_size clients, send the client
+                        if len(server.clients) < self.room_size:
+                            return server_address
 
-        else:
-            return self.create_room(room_name)
+            # went trough all the servers, all full
+            print('Get another server for the room')
+            raise NotImplementedError
 
-    def register_client(self, name):
-        client_id = uuid.uuid4()
-        self.clients[client_id] += [name]
+        else:  # room doesn't exist yet, create it
+            server = self.create_room(room_name)
+            room = RoomInfo(room_name)
+            room.add_server(server)
 
-    def register_server(self, address):
-        for server in self.servers:
-            if server.address == address:
-                raise ValueError
+            self.rooms[room_name] = room
+            return server
 
-        self.servers.append(ServerInfo(address))
+
 
 
