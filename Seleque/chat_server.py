@@ -101,11 +101,11 @@ class ChatServer:
         """
         Starts the chat server putting it in a loop waiting for new requests.
         """
-
-        chat_manager = threading.Thread(target=self._register)
-
-        chat_manager.start()
+        self.start_register()
         self.daemon.requestLoop()
+
+    def start_register(self):
+        threading.Thread(target=self._register).start()
 
     def _register(self):
         """
