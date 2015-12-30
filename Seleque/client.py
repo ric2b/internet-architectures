@@ -7,6 +7,10 @@ Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
 Pyro4.config.SERIALIZER = 'pickle'
 
 
+class RegisterError(Exception):
+    pass
+
+
 class Client:
 
     """
@@ -23,28 +27,31 @@ class Client:
         Registers the client in the chat server with the given uri.
 
         :param server_uri: uri of the server to register to.
+        :raises: ConnectionRefusedError: if was not able connect to the server.
+        :raises: RegisterError: if the register process failed.
         """
 
-        self.server = Pyro4.Proxy(server_uri)
+        server = Pyro4.Proxy(server_uri)
 
         # call the register method of the server to obtain an id and the server's address
-        response = self.server.register()
-        self.id = response[0]
-        server_address = Address(response[1], response[2])
-
+        client_id, server_address = server.request_id()
+        
         # establish a TCP connection with the server
-        self.connection = socket.socket()
-        self.connection.connect((server_address.ip_address, server_address.port))
+        connection = socket.socket()
+        connection.connect((server_address.ip_address, server_address.port))
 
         # register in the server by providing the client assigned id
-        self.connection.send(self.id.hex.encode())
+        connection.send(client_id.encode())
 
         # wait for the server acknowledge
-        ack = self.connection.recv(32).decode()
+        ack = connection.recv(32).decode()
+        
         if ack == "OK":
-            print("register OK")
+            self.id = id
+            self.connection = connection
+            self.server = server
         else:
-            print("register FAILED")
+            raise RegisterError("failed to register with the server")
 
     def send_message(self, message):
         """
