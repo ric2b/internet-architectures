@@ -1,6 +1,22 @@
+import socket
 import uuid
 import Pyro4
-from circular_list import CircularList
+from circular_list import CircularList, PacketId
+
+
+class ClientInformation:
+
+    """ Holds all information that might be stored by the server for each client """
+
+    def __init__(self, id: int, last_packetid: PacketId, connection: socket = None):
+        self.id = id
+        self.last_packetid = last_packetid
+        self.connection = connection
+
+    def __str__(self):
+        return "Info(id=%s, packet_id=%s, %s)" % (self.id,
+                                                  self.last_packetid,
+                                                  "connected" if self.connection else "unconnected")
 
 
 class ChatServer:
