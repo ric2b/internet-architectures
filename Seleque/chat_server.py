@@ -47,31 +47,46 @@ class ChatServer:
     def request_id(self):
         """
         Requests the server for a unique client id. The server will generate the
-        id and return it to the client along with its address. The returned id
-        and address are required for a client to register to the server.
+        id, reserve it, and return it to the client along with its address. This
+        are required for a client to register to the server.
 
         :return: client id and the server's address.
         """
 
         # generate unique id for the new user
         client_id = uuid.uuid4()
-
-        # a new user only receives messages that are sent after he registers
-        # then the user must store the id of the current last message
-
-        try:
-            self.clients[client_id] = ClientInformation(id=client_id,
-                                                        last_message_id=self.messages_buffer.get_newest()[0])
-        except AttributeError:
-            # TODO change the raised exception to an LookupError
-            # there was no messages in the message buffer yet
-            # do not store any packet id
-            self.clients[client_id] = ClientInformation(id=client_id)
-
-        return client_id, self.address.ip_address, self.address.port
+        # register the client id but keep the client information empty
+        # the client information will be stored after the clients registers
+        self.clients[client_id] = None
 
     def send_message(self, message):
+        """
+        Sends a message to all the clients in the server. Puts the message in the
+        message buffer and notifies all registered clients of the new message. If
+        there any client with a broken connection they are removed.
+
+        :param message: message to be sent.
+        """
+
         self.messages_buffer.append(message)
+
+        # notify all clients of a new message
+        clients_to_remove = []
+        for client in self.clients.values():
+            try:
+                client.connection.send("NEW MESSAGE".encode())
+            except AttributeError:
+                # the client is no completely registered yet
+                # ignore this client and move to the next
+                pass
+            except BrokenPipeError:
+                # this client has a broken connection
+                client.connection.close()
+                clients_to_remove.append(client.id)
+
+        # remove the clients with broken connections
+        for client_id in clients_to_remove:
+            del self.clients[client_id]
 
     def receive_pending(self, client_id):
 
