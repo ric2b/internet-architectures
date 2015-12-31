@@ -59,4 +59,4 @@ class ChatRoom:
         del self.clients[client_id]
 
     def __iter__(self):
-        return self.clients.values()
+        return iter(self.clients.values())
