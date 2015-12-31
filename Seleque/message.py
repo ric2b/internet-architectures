@@ -24,3 +24,6 @@ class Message:
         self.sender_id = sender_id
         self.text = text
         self.message_id = message_id
+
+    def __str__(self):
+        return "msg(sender=%s, text=%s, id=%s)" % (str(self.sender_id), self.text, str(self.message_id))
