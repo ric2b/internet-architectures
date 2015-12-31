@@ -67,10 +67,13 @@ class CircularList:
         """
 
         index = self._newest
-        data_id = self._list[index].id
+        try:
+            data_id = self._list[index].id
 
-        id_packet = self._id_packet(index=index, id=data_id)
-        return id_packet, self._list[index].contents
+            id_packet = self._id_packet(index=index, id=data_id)
+            return id_packet, self._list[index].contents
+        except AttributeError:
+            raise LookupError('List is empty')
 
     def get_oldest(self):
         """

@@ -173,8 +173,7 @@ class ChatServer:
         try:
             # get the last message id
             last_message_id = self.messages_buffer.get_newest()[0]
-        except AttributeError:
-            # TODO change the raised exception to an LookupError
+        except LookupError:
             # there was no messages in the message buffer yet
             # do not store any packet id
             last_message_id = None
