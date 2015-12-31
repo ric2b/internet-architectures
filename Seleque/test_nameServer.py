@@ -7,8 +7,15 @@ class TestNameServer(TestCase):
     def setUp(self):
         self.name_server = NameServer(4)
 
+    def test_register_server(self):
+        self.name_server.register_server('127.0.0.1:9090')
+        self.assertEqual(self.name_server.list_servers(), ['127.0.0.1:9090'])
+
+        with self.assertRaises(ValueError):
+            self.name_server.register_server('127.0.0.1:9090')
+
     def test_list_rooms(self):
-        self.assertEqual(self.name_server.list_rooms(), set())
+        self.assertEqual(self.name_server.list_rooms(), [])
 
     def test_create_room(self):
         pass
@@ -26,11 +33,6 @@ class TestNameServer(TestCase):
         self.name_server.join_room('Peace Room')
         self.assertEqual(self.name_server.list_rooms(), {'War Room', 'Peace Room'})
 
-    def test_register_server(self):
-        self.name_server.register_server('127.0.0.1:9090')
-        self.assertEqual(self.name_server.servers, [ServerInfo('127.0.0.1:9090')])
 
-        with self.assertRaises(ValueError):
-            self.name_server.register_server('127.0.0.1:9090')
 
 
