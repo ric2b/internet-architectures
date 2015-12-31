@@ -27,5 +27,8 @@ class RoomId:
     def __gt__(self, other):
         return self.id > other.id
 
+    def __hash__(self):
+        return self.id
+
     def __str__(self):
-        return "room_id=%d" % (self.id,)
+        return "%d" % (self.id,)
