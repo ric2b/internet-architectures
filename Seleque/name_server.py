@@ -1,4 +1,5 @@
 import Pyro4
+import uuid
 
 
 class ServerInfo:
@@ -7,7 +8,7 @@ class ServerInfo:
         self.rooms = {}
         self._server = Pyro4.Proxy(server_uri)
 
-    def create_room(self, room):
+    def create_room(self, room: str):
         self.rooms[room] = 0
         # todo: use the actual method from the server
 
@@ -18,10 +19,11 @@ class ServerInfo:
 
 class NameServer:
 
-    def __init__(self, room_size):
+    def __init__(self, room_size: int):
         self.rooms = {}
         self.room_size = room_size
         self.room_size_increment = 0.5*room_size
+        self.clients = set()
         self.servers = {}
         self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
@@ -46,6 +48,9 @@ class NameServer:
 
     def list_rooms(self):
         return list(self.rooms.keys())
+
+    def list_users(self):
+        return list(self.clients)
 
     def create_room(self, room: str):
         """
@@ -97,15 +102,22 @@ class NameServer:
         Used so that the name server can keep track of how many clients each server has, by room.
         :param server: uri
         :param room: str
+        :return client: uuid
         """
+        client_id = uuid.uuid4()
+        self.clients.add(client_id)
         self.servers[server].rooms[room] += 1
 
-    def remove_client(self, server: uri, room: str):
+        return client_id
+
+    def remove_client(self, client: uuid, server: uri, room: str):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
+        :param client: uuid
         :param server: uri
         :param room: str
         """
+        self.clients.discard(client)
         self.servers[server].rooms[room] -= 1
 
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
