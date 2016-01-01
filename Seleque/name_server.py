@@ -1,4 +1,5 @@
 import Pyro4
+import uuid
 
 
 class ServerInfo:
@@ -18,6 +19,7 @@ class NameServer:
         self.rooms = {}
         self.room_size = room_size
         self.room_size_increment = 0.5*room_size
+        self.clients = set()
         self.servers = {}
         self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
@@ -37,6 +39,9 @@ class NameServer:
 
     def list_rooms(self):
         return list(self.rooms.keys())
+
+    def list_users(self):
+        return list(self.clients)
 
     def create_room(self, room_name):
         try:
@@ -73,9 +78,14 @@ class NameServer:
             return self.create_room(room_name)
 
     def register_client(self, server, room):
+        client_id = uuid.uuid4()
+        self.clients.add(client_id)
         self.servers[server].rooms[room] += 1
 
-    def remove_client(self, server, room):
+        return client_id
+
+    def remove_client(self, client, server, room):
+        self.clients.discard(client)
         self.servers[server].rooms[room] -= 1
 
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
