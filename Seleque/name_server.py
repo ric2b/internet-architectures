@@ -11,6 +11,10 @@ class ServerInfo:
         self.rooms[room] = 0
         # todo: use the actual method from the server
 
+    def take_down(self):
+        raise NotImplementedError
+        # todo: a way for the name server to take down servers, if issues are detected
+
 
 class NameServer:
 
@@ -22,15 +26,20 @@ class NameServer:
         self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
 
-    def register_server(self, server_uri):
-        if server_uri in self._server_order:
+    def register_server(self, server: uri):
+        if server in self._server_order:
                 raise ValueError('Server already registered')
 
-        self.servers[server_uri] = ServerInfo(server_uri)
-        self._server_order.append(server_uri)
+        self.servers[server] = ServerInfo(server)
+        self._server_order.append(server)
 
-    def remove_server(self, server):
-        raise NotImplementedError
+    def remove_server(self, server: uri):
+        self._server_order.remove(server)
+
+        for room in self.servers[server].rooms:  # for each room served by the server...
+            self.rooms[room].remove(server)  # remove the server from the room's list
+
+        self.servers.pop(server)
 
     def list_servers(self):
         return list(self.servers.keys())
@@ -38,7 +47,12 @@ class NameServer:
     def list_rooms(self):
         return list(self.rooms.keys())
 
-    def create_room(self, room_name):
+    def create_room(self, room: str):
+        """
+        finds a server and starts a NEW room on it
+        :param room: str
+        :return server: uri
+        """
         try:
             server = self._server_order[self._next_server]  # Round robin distribution of rooms
             self._next_server = (self._next_server + 1) % len(self._server_order)
@@ -49,14 +63,20 @@ class NameServer:
             except IndexError:  # There are no servers
                 raise ConnectionRefusedError('The system has no servers registered')
 
-        self.servers[server].create_room(room_name)
-        self.rooms[room_name] = {server}
+        self.servers[server].create_room(room)
+        self.rooms[room] = {server}
         return server
 
-    def join_room(self, room_name):
-        if room_name in self.rooms:  # If the room is already created
+    def join_room(self, room: str):
+        """
+        the client requests to join a room and gets the server uid.
+        if the room doesn't exist, it's created in the process of this call.
+        :param room: str
+        :return server: uri
+        """
+        if room in self.rooms:  # If the room is already created
             # look over the servers for the room
-            for server in self.rooms[room_name].servers:
+            for server in self.rooms[room].servers:
                 # if any has less than self.room_size clients, send the client
                 if self.servers[server].clients < self.room_size:
                     return server
@@ -70,12 +90,22 @@ class NameServer:
             # self.rooms[room_name].add(server)
 
         else:  # room doesn't exist yet, create it
-            return self.create_room(room_name)
+            return self.create_room(room)
 
-    def register_client(self, server, room):
+    def register_client(self, server: uri, room: str):
+        """
+        Used so that the name server can keep track of how many clients each server has, by room.
+        :param server: uri
+        :param room: str
+        """
         self.servers[server].rooms[room] += 1
 
-    def remove_client(self, server, room):
+    def remove_client(self, server: uri, room: str):
+        """
+        Used so that the name server can keep track of how many clients each server has, by room.
+        :param server: uri
+        :param room: str
+        """
         self.servers[server].rooms[room] -= 1
 
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
