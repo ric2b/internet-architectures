@@ -1,34 +1,15 @@
-import uuid
 import Pyro4
 
 
-class RoomInfo:
-    def __init__(self, name):
-        self.name = name
-        self.clients = {}
-        self.servers = []
-
-    def add_server(self, server_index):
-        self.servers.append(server_index)
-
-    def add_client(self, client, server_address):
-        self.clients[client] = server_address
-
-    def remove_client(self, client):
-        return self.clients.pop(client)
-
-    def __eq__(self, other):
-        return True if self.clients == other.clients and self.servers == other.servers else False
-
-
 class ServerInfo:
-    def __init__(self):
+    def __init__(self, server_uri):
         self.clients = 0
-        self.rooms = set()
+        self.rooms = {}
+        self._server = Pyro4.Proxy(server_uri)
 
     def create_room(self, room):
-        self.rooms.add(room)
-        raise NotImplementedError
+        self.rooms[room] = 0
+        # todo: use the actual method from the server
 
 
 class NameServer:
@@ -36,17 +17,17 @@ class NameServer:
     def __init__(self, room_size):
         self.rooms = {}
         self.room_size = room_size
+        self.room_size_increment = 0.5*room_size
         self.servers = {}
-        self.clients = set()
-        self._server_order = []
+        self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
 
-    def register_server(self, new_address):
-        if new_address in self._server_order:
+    def register_server(self, server_uri):
+        if server_uri in self._server_order:
                 raise ValueError('Server already registered')
 
-        self.servers[new_address] = ServerInfo()
-        self._server_order.append(new_address)
+        self.servers[server_uri] = ServerInfo(server_uri)
+        self._server_order.append(server_uri)
 
     def remove_server(self, server):
         raise NotImplementedError
@@ -69,6 +50,7 @@ class NameServer:
                 raise ConnectionRefusedError('The system has no servers registered')
 
         self.servers[server].create_room(room_name)
+        self.rooms[room_name] = {server}
         return server
 
     def join_room(self, room_name):
@@ -79,34 +61,28 @@ class NameServer:
                 if self.servers[server].clients < self.room_size:
                     return server
 
-            # went trough all the servers, all full
+            # went trough all the current servers, all full
             print('Get another server for the room')
             raise NotImplementedError
 
+            # All servers completely full, raise self.room_size?
+            # self.room_size += self.room_size_increment
+            # self.rooms[room_name].add(server)
+
         else:  # room doesn't exist yet, create it
-            server = self.create_room(room_name)
-            room = RoomInfo(room_name)
-            room.add_server(server)
+            return self.create_room(room_name)
 
-            self.rooms[room_name] = room
-            return server
+    def register_client(self, server, room):
+        self.servers[server].rooms[room] += 1
 
-    def register_client(self, room, server):
-        client_id = uuid.uuid4()
-        self.clients += client_id
-        self.servers[server].clients += 1
-        self.rooms[room].addclient(client_id, server)
+    def remove_client(self, server, room):
+        self.servers[server].rooms[room] -= 1
 
-        return client_id
-
-    def remove_client(self, client, room):
-        self.clients.discard(client)
-        server = self.rooms[room].remove_client(client)
-        self.servers[server].clients -= 1
-
-        if self.servers[server].clients == 0:
-            raise NotImplementedError
-
+        if self.servers[server].clients == 0:  # room closed if the server no longer has users
+            self.servers[server].rooms.pop(room)  # the room is no longer on the server
+            self.rooms[room].remove(server)  # the room no longer uses this server
+            if len(self.rooms[room]) <= 0:
+                self.rooms.pop(room)  # if the room has no more servers, close
 
 if __name__ == "__main__":
 
