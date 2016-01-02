@@ -38,7 +38,11 @@ class ChatRoom:
 
         :param client_id: id of the client to register.
         :param client_info: information associated with the client
+        :raises ValueError: if the client is already registered
         """
+        if client_id in self.clients:
+            raise ValueError("a client with this id is already registered")
+
         self.clients[client_id] = client_info
 
     def remove(self, client_id):

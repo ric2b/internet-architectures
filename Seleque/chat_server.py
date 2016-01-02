@@ -4,7 +4,12 @@ import uuid
 from collections import namedtuple
 
 import Pyro4
+
+from chat_room import ChatRoom
 from circular_list import CircularList
+from client_id import ClientId
+from name_server import NameServer, InvalidIdError
+from room_id import RoomId
 
 name_server_uri = 'PYRO:name_server@localhost:63669'
 
@@ -19,10 +24,10 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, nickname: str, message_id, connection: socket = None):
+    def __init__(self, nickname: str, message_id, client):
         self.nickname = nickname
         self.message_id = message_id
-        self.connection = connection
+        self.client = client
 
     def __str__(self):
         return "Info(id=%s: %s)" % (self.nickname, "connected" if self.connection else "unconnected")
@@ -39,19 +44,41 @@ class ChatServer:
         :param buffer_size: the size of the message buffer.
         """
 
-        self.address = address
-        self.buffer_size = buffer_size
+        self.rooms = {}  # type: dict[RoomId: ChatRoom]
+        self.uri = None  # type: Pyro4.URI
+        self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
-        # each client is associated to the last message he read
-        self.clients = {}
-        self.nicknames = {}
-        # buffer with all the messages
-        self.rooms = {}
-        self.room_clients = {}
-        self.uri = None
+    def register(self, room_id: RoomId, client_id: ClientId, client_uri: Pyro4.URI, nickname: str):
+        """
+        Registers the client in a room of the chat server. Establishes a pyro connection
+        with the client and adds the client to the room associating him with the given
+        nickname.
 
-        self.name_server = Pyro4.Proxy(name_server_uri)
+        :param room_id: id of the room to register to.
+        :param client_id: id of the client to register.
+        :param client_uri: uri of the client who wants to register.
+        :param nickname: nickname to associate with the client.
+        :raises KeyError: if the room does not exist in the server.
+        :raises InvalidIdError: if the client id is not correctly registered in the name server.
+        """
+        # create a pyro connection with the client
+        client = Pyro4.Proxy(client_uri)
 
+        try:
+            self.rooms[room_id].register(client_id, ClientInformation(nickname, None, client))
+        except KeyError:
+            raise KeyError("there is no room with id=", str(room_id))
+
+        try:
+            # register the client in the name server
+            self.name_server.register_client(client_id, self.uri, room_id, nickname)
+        except InvalidIdError:
+            # the client id provided is not registered in the name server
+            # the registration failed
+            self.rooms[room_id].remove(client_id)
+            raise InvalidIdError
+
+    # TODO reimplement this to support the ChatRoom
     def create_room(self, room: str):
         self.rooms[room] = CircularList(self.buffer_size)
         self.room_clients[room] = set()
