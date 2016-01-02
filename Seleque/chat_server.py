@@ -90,7 +90,7 @@ class ChatServer:
                 # the client is no completely registered yet
                 # ignore this client and move to the next
                 pass
-            except BrokenPipeError:
+            except socket.error:
                 # this client has a broken connection
                 client.connection.close()
                 clients_to_remove.append(client.id)
