@@ -131,6 +131,7 @@ class NameServer:
             self.rooms[room].remove(server)  # the room no longer uses this server
             if len(self.rooms[room]) <= 0:
                 self.rooms.pop(room)  # if the room has no more servers, close
+                print('closed room {0} on server {1}'.format(room, server))
 
 if __name__ == "__main__":
 

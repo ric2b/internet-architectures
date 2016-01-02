@@ -4,9 +4,9 @@ import uuid
 from collections import namedtuple
 
 import Pyro4
-from circular_list import CircularList, PacketId
+from circular_list import CircularList
 
-name_server_uri = 'PYRO:name_server@localhost:62523'
+name_server_uri = 'PYRO:name_server@localhost:63669'
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
@@ -87,7 +87,7 @@ class ChatServer:
         :param message: message to be sent.
         """
 
-        self.rooms[room].append(message)
+        self.rooms[room].append((self.nicknames[client_id], message))
 
         # notify all clients of a new message
         clients_to_remove = []
@@ -106,8 +106,8 @@ class ChatServer:
 
         # remove the clients with broken connections
         for client in clients_to_remove:
-            del self.clients[client]
-            self.room_clients[room].discard(client)
+            self.clients.pop(client)
+            self.room_clients[room].pop(client)
 
     def receive_pending(self, room: str, client_id):
         """

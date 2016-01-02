@@ -2,7 +2,7 @@ import socket
 import Pyro4
 from chat_server import Address
 
-name_server_uri = 'PYRO:name_server@localhost:61764'
+name_server_uri = 'PYRO:name_server@localhost:63669'
 
 
 class RegisterError(Exception):
@@ -124,7 +124,8 @@ try:
     threading.Thread(None, input_loop, (), {client}).start()
 
     while True:
-        print(client.receive_message())
+        for author, message in client.receive_message():
+            print('{0}: {1}'.format(author, message))
 
 finally:
     print("".join(Pyro4.util.getPyroTraceback()))
