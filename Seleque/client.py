@@ -1,8 +1,6 @@
 import socket
 import Pyro4
-
-Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
-Pyro4.config.SERIALIZER = 'pickle'
+from chat_server import Address
 
 
 class RegisterError(Exception):
@@ -83,3 +81,30 @@ class Client:
     def __del__(self):
         if self.connection:
             self.connection.close()
+
+if __name__ == "__main__":
+
+    Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
+    Pyro4.config.SERIALIZER = 'pickle'
+
+    import threading
+
+    def input_loop(client_object):
+        print('ready for input: ')
+        try:
+            while True:
+                client_object.send_message(input())
+        finally:
+            print("".join(Pyro4.util.getPyroTraceback()))
+
+try:
+    client = Client()
+    client.register(input('Server URI: '))
+
+    threading.Thread(None, input_loop, (), {client}).start()
+
+    while True:
+        print(client.receive_message())
+
+finally:
+    print("".join(Pyro4.util.getPyroTraceback()))

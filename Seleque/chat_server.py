@@ -23,8 +23,7 @@ class ClientInformation:
         self.connection = connection
 
     def __str__(self):
-        return "Info(id=%s, packet_id=%s, %s)" % (self.id,
-                                                  self.message_id,
+        return "Info(id=%s, packet_id=%s, %s)" % (self.id, self.message_id,
                                                   "connected" if self.connection else "unconnected")
 
 
@@ -178,4 +177,11 @@ class ChatServer:
             # do not store any packet id
             last_message_id = None
 
-        self.clients[client_id] = ClientInformation(id=client_id, message_id=last_message_id, connection=connection)
+        self.clients[client_id] = ClientInformation(id=client_id, message_id=last_message_id,
+                                                    connection=connection)
+
+if __name__ == "__main__":
+
+    server = ChatServer(Address(socket.gethostname(), socket.htons(5000)), 10)
+    print(server.uri)
+    server.start_loop()
