@@ -2,6 +2,8 @@ import socket
 import Pyro4
 from chat_server import Address
 
+name_server_uri = 'PYRO:name_server@localhost:61764'
+
 
 class RegisterError(Exception):
     pass
@@ -15,14 +17,19 @@ class Client:
 
     def __init__(self):
         self.id = None
+        self.room = None
         self.connection = None
         self.server = None
 
-    def register(self, server_uri):
+        self.name_server = Pyro4.Proxy(name_server_uri)
+
+    def register(self, server_uri: Pyro4.URI, room: str, nickname: str, ):
         """
         Registers the client in the chat server with the given uri.
 
         :param server_uri: uri of the server to register to.
+        :param room:
+        :param nickname:
         :raises: ConnectionRefusedError: if was not able connect to the server.
         :raises: RegisterError: if the register process failed.
         """
@@ -30,7 +37,7 @@ class Client:
         server = Pyro4.Proxy(server_uri)
 
         # call the register method of the server to obtain an id and the server's address
-        client_id, server_address = server.request_id()
+        client_id, server_address = server.request_id(room, nickname)
 
         # establish a TCP connection with the server
         connection = socket.socket()
@@ -49,6 +56,14 @@ class Client:
         else:
             raise RegisterError("failed to register with the server")
 
+    def join_room(self, room: str, nickname: str):
+        server_uri = self.name_server.join_room(room)
+        self.server = Pyro4.Proxy(server_uri)
+
+        self.register(server_uri, room, nickname)
+
+        self.room = room
+
     def send_message(self, message):
         """
         Sends a message to all of the clients in the chat server.
@@ -56,7 +71,7 @@ class Client:
         :param message: message to be sent.
         """
 
-        self.server.send_message(message)
+        self.server.send_message(self.room, self.id, message)
 
     def receive_message(self):
         """
@@ -68,7 +83,12 @@ class Client:
 
         self._wait_message()
         # read the message
-        return self.server.receive_pending(self.id)
+        try:
+            return self.server.receive_pending(self.room, self.id)
+        except EOFError:
+            return None  # messages were already fetched
+        except LookupError:
+            raise NotImplementedError('Fetch from the beginning and warn the user')
 
     def _wait_message(self):
         """
@@ -99,7 +119,7 @@ if __name__ == "__main__":
 
 try:
     client = Client()
-    client.register(input('Server URI: '))
+    client.join_room(input('room: '), input('nickname: '))
 
     threading.Thread(None, input_loop, (), {client}).start()
 

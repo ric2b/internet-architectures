@@ -6,7 +6,7 @@ from collections import namedtuple
 import Pyro4
 from circular_list import CircularList, PacketId
 
-name_server_uri = 'PYRO:name_server@localhost:63288'
+name_server_uri = 'PYRO:name_server@localhost:62523'
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
@@ -19,14 +19,13 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, id: int, message_id: PacketId, connection: socket = None):
-        self.id = id
+    def __init__(self, nickname: str, message_id, connection: socket = None):
+        self.nickname = nickname
         self.message_id = message_id
         self.connection = connection
 
     def __str__(self):
-        return "Info(id=%s, packet_id=%s, %s)" % (self.id, self.message_id,
-                                                  "connected" if self.connection else "unconnected")
+        return "Info(id=%s: %s)" % (self.nickname, "connected" if self.connection else "unconnected")
 
 
 class ChatServer:
@@ -45,43 +44,55 @@ class ChatServer:
 
         # each client is associated to the last message he read
         self.clients = {}
+        self.nicknames = {}
         # buffer with all the messages
-        self.messages_buffer = CircularList(self.buffer_size)
+        self.rooms = {}
+        self.room_clients = {}
         self.uri = None
 
         self.name_server = Pyro4.Proxy(name_server_uri)
 
-    def request_id(self):
+    def create_room(self, room: str):
+        self.rooms[room] = CircularList(self.buffer_size)
+        self.room_clients[room] = set()
+
+    def request_id(self, room: str, nickname: str):
         """
         Requests the server for a unique client id. The server will generate the
         id, reserve it, and return it to the client along with its address. This
         are required for a client to register to the server.
 
+        :param nickname:
+        :param room:
         :return: client id and the server's address.
         """
 
         # generate unique id for the new user
-        client_id = self.name_server.register_client(self.uri, 'testing')
+        client = self.name_server.register_client(self.uri, room)
+        self.nicknames[client] = nickname
         # register the client id but keep the client information empty
         # the client information will be stored after the clients registers
-        self.clients[client_id] = None
+        self.clients[client] = room  # todo: fix this dirty hack
 
-        return client_id, self.address
+        return client, self.address
 
-    def send_message(self, message):
+    def send_message(self, room, client_id: uuid, message):
         """
         Sends a message to all the clients in the server. Puts the message in the
         message buffer and notifies all registered clients of the new message. If
         there any client with a broken connection they are removed.
 
+        :param room:
+        :param client_id:
         :param message: message to be sent.
         """
 
-        self.messages_buffer.append(message)
+        self.rooms[room].append(message)
 
         # notify all clients of a new message
         clients_to_remove = []
-        for client in self.clients.values():
+        room_clients = [self.clients[client] for client in self.room_clients[room]]
+        for client in room_clients:
             try:
                 client.connection.send("NEW MESSAGE".encode())
             except AttributeError:
@@ -91,33 +102,35 @@ class ChatServer:
             except socket.error:
                 # this client has a broken connection
                 client.connection.close()
-                clients_to_remove.append(client.id)
+                clients_to_remove.append(client)
 
         # remove the clients with broken connections
-        for client_id in clients_to_remove:
-            del self.clients[client_id]
+        for client in clients_to_remove:
+            del self.clients[client]
+            self.room_clients[room].discard(client)
 
-    def receive_pending(self, client_id):
+    def receive_pending(self, room: str, client_id):
         """
         Returns a list with all the messages in the message queue that the client
         has not received.
 
-        :param client_id: id of the client requesting the messages.
+        :param room:
+        :param client_id:
         :return: list with the next messages in the message queue.
         """
 
         client_info = self.clients[client_id]
-        current_index, message_list = self.messages_buffer.get_since(client_info.message_id)
+        current_index, message_list = self.rooms[room].get_since(client_info.message_id)
         self.clients[client_id].message_id = current_index
 
         return message_list
 
-    def start_loop(self, uri):
+    def start_loop(self, self_uri: Pyro4.core.URI):
         """
         Starts the chat server putting it in a loop waiting for new requests.
-        :param uri:
+        :param self_uri:
         """
-        self.uri = uri
+        self.uri = self_uri
         self.name_server.register_server(self.uri)
         self.start_register()
 
@@ -164,21 +177,23 @@ class ChatServer:
     def _register_client(self, client_id, connection):
 
         # if the client_id does not exist then the registration is not valid
-        if client_id not in self.clients:
+        room = self.clients[client_id]
+        if type(room) != str:
             raise KeyError
 
         # a new user only receives messages that are sent after registering:
         # => the client must store the id of the current last message in the message buffer
         try:
             # get the last message id
-            last_message_id = self.messages_buffer.get_newest()[0]
+            last_message_id = self.rooms[room].get_newest()[0]
         except LookupError:
             # there was no messages in the message buffer yet
             # do not store any packet id
             last_message_id = None
 
-        self.clients[client_id] = ClientInformation(id=client_id, message_id=last_message_id,
-                                                    connection=connection)
+        self.room_clients[room].add(client_id)
+        self.clients[client_id] = ClientInformation(
+                nickname=client_id, message_id=last_message_id, connection=connection)
 
 if __name__ == "__main__":
 
