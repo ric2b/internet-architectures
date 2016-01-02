@@ -1,9 +1,8 @@
 import socket
 import Pyro4
 from chat_server import Address
-from circular_list import PacketId
 
-name_server_uri = 'PYRO:name_server@localhost:60991'
+name_server_uri = 'PYRO:name_server@localhost:61764'
 
 
 class RegisterError(Exception):
@@ -18,7 +17,6 @@ class Client:
 
     def __init__(self):
         self.id = None
-        self.current_packet = None
         self.room = None
         self.connection = None
         self.server = None
@@ -39,7 +37,7 @@ class Client:
         server = Pyro4.Proxy(server_uri)
 
         # call the register method of the server to obtain an id and the server's address
-        client_id, server_address = server.request_id(nickname, room)
+        client_id, server_address = server.request_id(room, nickname)
 
         # establish a TCP connection with the server
         connection = socket.socket()
@@ -73,7 +71,7 @@ class Client:
         :param message: message to be sent.
         """
 
-        self.server.send_message(self.id, message)
+        self.server.send_message(self.room, self.id, message)
 
     def receive_message(self):
         """
@@ -86,7 +84,7 @@ class Client:
         self._wait_message()
         # read the message
         try:
-            return self.server.receive_pending(self.room, self.current_packet)
+            return self.server.receive_pending(self.room, self.id)
         except EOFError:
             return None  # messages were already fetched
         except LookupError:

@@ -87,7 +87,7 @@ class NameServer:
         """
         if room in self.rooms:  # If the room is already created
             # look over the servers for the room
-            for server in self.rooms[room].servers:
+            for server in self.rooms[room]:
                 # if any has less than self.room_size clients, send the client
                 if self.servers[server].clients < self.room_size:
                     return server

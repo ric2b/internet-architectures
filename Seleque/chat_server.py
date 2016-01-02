@@ -6,7 +6,7 @@ from collections import namedtuple
 import Pyro4
 from circular_list import CircularList, PacketId
 
-name_server_uri = 'PYRO:name_server@localhost:60991'
+name_server_uri = 'PYRO:name_server@localhost:61764'
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
@@ -19,8 +19,9 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, nickname: str, connection: socket = None):
+    def __init__(self, nickname: str, message_id, connection: socket = None):
         self.nickname = nickname
+        self.message_id = message_id
         self.connection = connection
 
     def __str__(self):
@@ -53,12 +54,13 @@ class ChatServer:
     def create_room(self, room: str):
         pass
 
-    def request_id(self, nickname: str, room: str):
+    def request_id(self, room: str, nickname: str):
         """
         Requests the server for a unique client id. The server will generate the
         id, reserve it, and return it to the client along with its address. This
         are required for a client to register to the server.
 
+        :param nickname:
         :param room:
         :return: client id and the server's address.
         """
@@ -72,7 +74,7 @@ class ChatServer:
 
         return client, self.address
 
-    def send_message(self, client: uuid, message):
+    def send_message(self, room, client: uuid, message):
         """
         Sends a message to all the clients in the server. Puts the message in the
         message buffer and notifies all registered clients of the new message. If
@@ -102,18 +104,21 @@ class ChatServer:
         for client_id in clients_to_remove:
             del self.clients[client_id]
 
-    def receive_pending(self, room: str, packet_id):
+    def receive_pending(self, room: str, client_id):
         """
         Returns a list with all the messages in the message queue that the client
         has not received.
 
         :param room:
-        :param packet_id:
+        :param client_id:
         :return: list with the next messages in the message queue.
         """
 
-        current_id, message_list = self.messages_buffer.get_since(packet_id)
-        return current_id, message_list
+        client_info = self.clients[client_id]
+        current_index, message_list = self.messages_buffer.get_since(client_info.message_id)
+        self.clients[client_id].message_id = current_index
+
+        return message_list
 
     def start_loop(self, self_uri: Pyro4.core.URI):
         """
@@ -180,7 +185,7 @@ class ChatServer:
             # do not store any packet id
             last_message_id = None
 
-        self.clients[client_id] = ClientInformation(nickname=client_id, connection=connection)
+        self.clients[client_id] = ClientInformation(nickname=client_id, message_id=last_message_id, connection=connection)
 
 if __name__ == "__main__":
 
