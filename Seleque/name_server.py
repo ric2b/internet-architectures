@@ -28,17 +28,17 @@ class NameServer:
         self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
 
-    def register_server(self, server: Pyro4.core.URI):
+    def register_server(self, server: Pyro4.URI):
         if server in self._server_order:
                 raise ValueError('Server already registered')
 
         self.servers[server] = ServerInfo(server)
         self._server_order.append(server)
 
-        self.rooms['testing'] = server
-        self.servers[server].rooms['testing'] = 0
+        #  self.rooms['testing'] = server
+        #  self.servers[server].rooms['testing'] = 0
 
-    def remove_server(self, server: Pyro4.core.URI):
+    def remove_server(self, server: Pyro4.URI):
         self._server_order.remove(server)
 
         for room in self.servers[server].rooms:  # for each room served by the server...
@@ -73,6 +73,9 @@ class NameServer:
 
         self.servers[server].create_room(room)
         self.rooms[room] = {server}
+
+        print('created room {0} on server {1}'.format(room, server))
+
         return server
 
     def join_room(self, room: str):
@@ -100,7 +103,7 @@ class NameServer:
         else:  # room doesn't exist yet, create it
             return self.create_room(room)
 
-    def register_client(self, server: Pyro4.core.URI, room: str):
+    def register_client(self, server: Pyro4.URI, room: str):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
         :param server: uri
@@ -111,11 +114,9 @@ class NameServer:
         self.clients.add(client_id)
         self.servers[server].rooms[room] += 1
 
-        print('hi')
-
         return client_id
 
-    def remove_client(self, client: uuid, server: Pyro4.core.URI, room: str):
+    def remove_client(self, client: uuid, server: Pyro4.URI, room: str):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
         :param client: uuid
