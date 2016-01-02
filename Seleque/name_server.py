@@ -28,14 +28,17 @@ class NameServer:
         self._server_order = []  # for round robin assignment of rooms to servers
         self._next_server = 0
 
-    def register_server(self, server: uri):
+    def register_server(self, server: Pyro4.core.URI):
         if server in self._server_order:
                 raise ValueError('Server already registered')
 
         self.servers[server] = ServerInfo(server)
         self._server_order.append(server)
 
-    def remove_server(self, server: uri):
+        self.rooms['testing'] = server
+        self.servers[server].rooms['testing'] = 0
+
+    def remove_server(self, server: Pyro4.core.URI):
         self._server_order.remove(server)
 
         for room in self.servers[server].rooms:  # for each room served by the server...
@@ -97,7 +100,7 @@ class NameServer:
         else:  # room doesn't exist yet, create it
             return self.create_room(room)
 
-    def register_client(self, server: uri, room: str):
+    def register_client(self, server: Pyro4.core.URI, room: str):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
         :param server: uri
@@ -108,9 +111,11 @@ class NameServer:
         self.clients.add(client_id)
         self.servers[server].rooms[room] += 1
 
+        print('hi')
+
         return client_id
 
-    def remove_client(self, client: uuid, server: uri, room: str):
+    def remove_client(self, client: uuid, server: Pyro4.core.URI, room: str):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
         :param client: uuid
@@ -132,6 +137,6 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZER = 'pickle'
 
     daemon = Pyro4.Daemon()
-    uri = daemon.register(NameServer(4), 'server')
+    uri = daemon.register(NameServer(4), 'name_server')
     print("Ready. Object uri =", uri)
     daemon.requestLoop()

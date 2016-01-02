@@ -6,6 +6,8 @@ from collections import namedtuple
 import Pyro4
 from circular_list import CircularList, PacketId
 
+name_server_uri = 'PYRO:name_server@localhost:63288'
+
 Address = namedtuple('Address', ['ip_address', 'port'])
 
 
@@ -45,13 +47,9 @@ class ChatServer:
         self.clients = {}
         # buffer with all the messages
         self.messages_buffer = CircularList(self.buffer_size)
+        self.uri = None
 
-        # set pickle as the serializer used by pyro
-        Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
-        Pyro4.config.SERIALIZER = 'pickle'
-        # register the server in the pyro daemon
-        self.daemon = Pyro4.Daemon()
-        self.uri = self.daemon.register(self, 'server')
+        self.name_server = Pyro4.Proxy(name_server_uri)
 
     def request_id(self):
         """
@@ -63,7 +61,7 @@ class ChatServer:
         """
 
         # generate unique id for the new user
-        client_id = uuid.uuid4()
+        client_id = self.name_server.register_client(self.uri, 'testing')
         # register the client id but keep the client information empty
         # the client information will be stored after the clients registers
         self.clients[client_id] = None
@@ -114,12 +112,14 @@ class ChatServer:
 
         return message_list
 
-    def start_loop(self):
+    def start_loop(self, uri):
         """
         Starts the chat server putting it in a loop waiting for new requests.
+        :param uri:
         """
+        self.uri = uri
+        self.name_server.register_server(self.uri)
         self.start_register()
-        self.daemon.requestLoop()
 
     def start_register(self):
         threading.Thread(target=self._register).start()
@@ -182,6 +182,14 @@ class ChatServer:
 
 if __name__ == "__main__":
 
+    # set pickle as the serializer used by pyro
+    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+    Pyro4.config.SERIALIZER = 'pickle'
+
     server = ChatServer(Address(socket.gethostname(), socket.htons(5000)), 10)
-    print(server.uri)
-    server.start_loop()
+    # register the server in the pyro daemon
+    daemon = Pyro4.Daemon()
+    uri = daemon.register(server, 'chat_server')
+    print(uri)
+    server.start_loop(uri)
+    daemon.requestLoop()
