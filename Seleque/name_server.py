@@ -9,8 +9,8 @@ class ServerInfo:
         self._server = Pyro4.Proxy(server_uri)
 
     def create_room(self, room: str):
+        self._server.create_room(room)
         self.rooms[room] = 0
-        # todo: use the actual method from the server
 
     def take_down(self):
         raise NotImplementedError
