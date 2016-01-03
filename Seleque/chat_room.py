@@ -64,13 +64,9 @@ class ChatRoom:
         """
 
         try:
-            client_connection = self.clients[client_id].connection # type: socket
-            if client_connection:
-                client_connection.close()
+            del self.clients[client_id]
         except KeyError:
             raise LookupError("client with id=%s does not exist" % (client_id,))
-
-        del self.clients[client_id]
 
     def __iter__(self):
         return iter(self.clients.values())
