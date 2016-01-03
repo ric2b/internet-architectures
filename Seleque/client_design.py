@@ -76,6 +76,11 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        MainWindow.setTabOrder(self.nickname_box, self.room_drop_down)
+        MainWindow.setTabOrder(self.room_drop_down, self.join_button)
+        MainWindow.setTabOrder(self.join_button, self.message_entry_box)
+        MainWindow.setTabOrder(self.message_entry_box, self.send_button)
+        MainWindow.setTabOrder(self.send_button, self.message_display_box)
 
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "Seléque", None))
