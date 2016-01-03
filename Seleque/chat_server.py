@@ -1,38 +1,15 @@
-import socket
-import threading
-import uuid
-from collections import namedtuple
-
 import Pyro4
 
+from collections import namedtuple
 from chat_room import ChatRoom
-from circular_list import CircularList
 from client_id import ClientId
 from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
-name_server_uri = 'PYRO:name_server@localhost:63669'
+name_server_uri = 'PYRO:name_server@localhost:55067'
 
 Address = namedtuple('Address', ['ip_address', 'port'])
-
-
-class ClientInformation:
-
-    """
-    Holds all information that might be stored by the server for each client.
-    This must be a class and not a namedtuple because they are immutable and the attributes
-    can not be altered.
-    """
-
-    def __init__(self, client_id, message_id, client, nickname: str = None):
-        self.client_id = client_id
-        self.nickname = nickname
-        self.message_id = message_id
-        self.client = client
-
-    def __str__(self):
-        return "Info(id=%s: %s)" % (self.nickname, "connected" if self.connection else "unconnected")
 
 
 class ChatServer:
@@ -51,7 +28,7 @@ class ChatServer:
         self.uri = None  # type: Pyro4.URI
         self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
-    def register(self, room_id: RoomId, client_id: ClientId, client_uri: Pyro4.URI, nickname: str):
+    def register(self, room_id: RoomId, client_id: ClientId, client_uri: Pyro4.URI, nickname: str = None):
         """
         Registers the client in a room of the chat server. Establishes a pyro connection
         with the client and adds the client to the room associating him with the given
@@ -67,7 +44,6 @@ class ChatServer:
         """
         # create a pyro connection with the client
         client = Pyro4.Proxy(client_uri)
-
         try:
             self.rooms[room_id].register(client_id, client, nickname)
         except KeyError:
@@ -123,34 +99,13 @@ class ChatServer:
         for client_id in clients_to_remove:
             self.rooms[room_id].remove(client_id)
 
-    def receive_pending(self, room: str, client_id):
+    def register_on_nameserver(self, self_uri: Pyro4.core.URI):
         """
-        Returns a list with all the messages in the message queue that the client
-        has not received.
-
-        :param room:
-        :param client_id:
-        :return: list with the next messages in the message queue.
-        """
-
-        client_info = self.clients[client_id]
-        current_index, message_list = self.rooms[room].get_since(client_info.message_id)
-        self.clients[client_id].message_id = current_index
-
-        return message_list
-
-    def start_loop(self, self_uri: Pyro4.core.URI):
-        """
-        Starts the chat server putting it in a loop waiting for new requests.
-        :param self_uri:
+        Registers the server in the name server.
+        :param self_uri: uri of the server.
         """
         self.uri = self_uri
         self.name_server.register_server(self.uri)
-        self.start_register()
-
-    # TODO must be reimplemented
-    def start_register(self):
-        pass
 
 
 if __name__ == "__main__":
@@ -159,10 +114,10 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    server = ChatServer(Address(socket.gethostname(), socket.htons(5000)), 10)
+    server = ChatServer(10)
     # register the server in the pyro daemon
     daemon = Pyro4.Daemon()
     uri = daemon.register(server, 'chat_server')
     print(uri)
-    server.start_loop(uri)
+    server.register_on_nameserver(uri)
     daemon.requestLoop()

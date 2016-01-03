@@ -1,13 +1,15 @@
+import threading
 from collections import deque
 
 import Pyro4
 
 from chat_server import ChatServer
+from client_id import ClientId
 from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
-name_server_uri = 'PYRO:name_server@localhost:63669'
+name_server_uri = 'PYRO:name_server@localhost:55067'
 
 
 class RegisterError(Exception):
@@ -21,10 +23,11 @@ class Client:
     """
 
     def __init__(self):
-        self.id = None
+
+        self.id = None  # type: ClientId
         self.room_id = None
         self.server = None
-        self.name_server = Pyro4.Proxy(name_server_uri) # type: NameServer
+        self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
         # messages queue
         self.message_queue = deque()
@@ -49,25 +52,28 @@ class Client:
         joined_successfully = False
         while not joined_successfully:
             # requests a server URI and a client id from the name server
-            self.id, server_uri = self.name_server.join_room(room_id)
+            client_id, server_uri = self.name_server.join_room(room_id)
 
             # generate the client's uri from the client id in order to be unique
-            self.client_uri = self.daemon.register(self, str(self.id))
-            # initialize the pyro service for the client
-            threading.Thread(target=self.daemon.requestLoop).start()
+            client_uri = self.daemon.register(self, str(client_id))
 
             # get the server where from the server uri
-            self.server = Pyro4.Proxy(server_uri)  # type: ChatServer
+            server = Pyro4.Proxy(server_uri)  # type: ChatServer
             try:
                 # register the client in the server
-                self.server.register(room_id, self.id, self.client_uri, nickname)
+                server.register(room_id, client_id, client_uri, nickname)
             except InvalidIdError:
                 # retry to register
                 continue
             else:
                 joined_successfully = True
+                self.server = server
+                self.client_uri = client_uri
+                self.id = client_id
+                self.room_id = room_id
 
-        self.room_id = room_id
+            # initialize the pyro service for the client
+            threading.Thread(target=self.daemon.requestLoop).start()
 
     def _send_message(self, message: Message):
         """
@@ -99,30 +105,32 @@ class Client:
         return message
 
 
+# noinspection PyProtectedMember
+def receive(client: Client):
+    while True:
+        print(client._receive_message())
+
+
+# noinspection PyProtectedMember
+def send(client: Client):
+    while True:
+        text = input("message: ")
+        client._send_message(Message(client.id, text))
+
 if __name__ == "__main__":
 
-    Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
+    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    import threading
-
-    def input_loop(client_object):
-        print('ready for input: ')
-        try:
-            while True:
-                client_object.send_message(input())
-        finally:
-            print("".join(Pyro4.util.getPyroTraceback()))
-
-try:
     client = Client()
-    client.join_room(input('room: '), input('nickname: '))
+    # noinspection PyProtectedMember
+    client._join_room(RoomId(), "david")
 
-    threading.Thread(None, input_loop, (), {client}).start()
+    thread1 = threading.Thread(target=receive, args=[client])
+    thread2 = threading.Thread(target=send, args=[client])
 
-    while True:
-        for author, message in client.receive_message():
-            print('{0}: {1}'.format(author, message))
+    thread1.start()
+    thread2.start()
 
-finally:
-    print("".join(Pyro4.util.getPyroTraceback()))
+    thread1.join()
+    thread2.join()

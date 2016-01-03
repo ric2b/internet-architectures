@@ -1,5 +1,3 @@
-from socket import socket
-
 from client_information import ClientInformation
 from circular_list import CircularList
 from client_id import ClientId

@@ -62,7 +62,7 @@ class NameServer:
     def list_users(self):
         return list(self.clients)
 
-    def create_room(self, room: str):
+    def create_room(self, room: RoomId):
         """
         finds a server and starts a NEW room on it
         :param room: str
