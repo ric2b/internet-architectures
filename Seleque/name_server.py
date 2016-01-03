@@ -126,12 +126,7 @@ class NameServer:
         return client_id, server_uri
 
     def get_nickname(self, client_id: ClientId):
-
-        try:
-            return self.clients[ClientId]
-        except KeyError:
-            print(client_id)
-            print(self.clients.keys())
+            return self.clients[client_id]
 
     def register_client(self, client_id: ClientId, server_uri: Pyro4.URI, room_id: RoomId, nickname: str):
         """
