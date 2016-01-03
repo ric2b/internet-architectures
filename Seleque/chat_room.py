@@ -14,8 +14,7 @@ class ChatRoom:
 
     def __init__(self, room_id: RoomId, name: str = None):
         """
-        Initializes the room with a unique identifier. It is created a message buffer
-        for the room with the given capacity.
+        Initializes the room with a unique identifier.
 
         :param room_id: id to be assigned to the room.
         :param name: name to be assigned to the room.
@@ -23,31 +22,22 @@ class ChatRoom:
         self.room_id = room_id
         self.name = name
 
-        # stores all the clients associated their respective information
+        # stores all the clients in the chat room
+        # associates the clients ids with their client object
         self.clients = {}
 
-    def register(self, client_id: ClientId, client, nickname: str = None):
+    def register(self, client_id: ClientId, client):
         """
-        Registers a new client in the room.
+        Registers a new client in the room by adding the client to the client list.
 
         :param client_id: id of the client to register.
         :param client: client object.
-        :param nickname: nickname to associate with the client.
         :raises ValueError: if the client is already registered.
         """
         if client_id in self.clients:
-            raise ValueError("a client with this id is already registered")
+            raise ValueError("a client is already registered with the id=%s" % (client_id,))
 
-        try:
-            # a new user only receives messages that are sent after registering:
-            # => the client must store the id of the current last message in the message buffer
-            last_message_id = self.messages_buffer.get_newest()[0]
-        except LookupError:
-            # there was no messages in the message buffer yet
-            # do not store any packet id
-            last_message_id = None
-
-        self.clients[client_id] = ClientInformation(client_id, last_message_id, client, nickname)
+        self.clients[client_id] = client
 
     def remove(self, client_id):
         """
@@ -67,7 +57,7 @@ class ChatRoom:
         return len(self.clients)
 
     def __iter__(self):
-        return iter(self.clients.values())
+        return iter(self.clients.keys())
 
     def __eq__(self, other):
         return self.room_id == other.room_id
