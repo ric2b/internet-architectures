@@ -1,11 +1,54 @@
 import socket
 import uuid
 from unittest import TestCase
+
+import Pyro4
+
 from chat_server import ChatServer, Address, ClientInformation
+from client_id import ClientId
+from room_id import RoomId
 
 
 class TestChatServer(TestCase):
 
+    class FakeNameServer:
+        def register_client(self, client_id, uri, room_id, nickname):
+            pass
+
+    @staticmethod
+    def fake_pyro_proxy(uri):
+        print("pyro connection: ", uri)
+
+    def setUp(self):
+        self.old_pyro_proxy = Pyro4.Proxy
+        Pyro4.Proxy = TestChatServer.fake_pyro_proxy
+
+    def tearDown(self):
+        Pyro4.Proxy = self.old_pyro_proxy
+
+    def test_register(self):
+        chat_server = ChatServer(10)
+        chat_server.name_server = self.FakeNameServer()
+
+        uri = Pyro4.URI("PYRO:name_server@localhost:63669")
+        nickname = "the chat server"
+
+        with self.assertRaises(KeyError):
+            chat_server.register(RoomId(), ClientId(), uri, nickname)
+
+        room_id = RoomId()
+        client_id = ClientId()
+        chat_server.create_room(room_id)
+
+        self.assertIsNotNone(chat_server.rooms[room_id])
+        self.assertEqual(len(chat_server.rooms[room_id].clients), 0)
+
+        chat_server.register(room_id, client_id, uri, nickname)
+
+        self.assertEqual(len(chat_server.rooms[room_id].clients), 1)
+
+
+class TestOldChatServer(TestCase):
     messages = ["Gentlemen, you can't fight in here! This is the War Room!",
                 "Man who catch fly with chopstick accomplish anything.",
                 "If you build it, he will come.",
