@@ -131,8 +131,6 @@ class NameServer:
         :param nickname: nickname associated with the client.
         :raises InvalidIdError: if the client id is not valid.
         """
-        client_id = uuid.uuid4()
-
         if client_id not in self.clients:
             # the client id is not valid
             raise InvalidIdError
