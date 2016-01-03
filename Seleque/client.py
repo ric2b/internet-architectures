@@ -10,7 +10,7 @@ from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
 
-class RegisterError(Exception):
+class StoppedException(Exception):
     pass
 
 
@@ -39,6 +39,8 @@ class Client:
         self.lock = threading.Lock()
         # used to signal the existence of new messages
         self.semaphore = threading.Semaphore(0)
+        # event to stop the receiving
+        self.to_stop = False
 
     def join_room(self, room_id: RoomId, nickname: str):
         """
@@ -98,19 +100,31 @@ class Client:
         # indicate that there is a new message
         self.semaphore.release()
 
-    def receive_message(self, timeout: float):
+    def receive_message(self):
         """
         Receives a message from the chat server. If there is no message available, it
         blocks until a new message is available.
 
         :return: the received message.
+        :raises StoppedException: if the client is stopped while receiving a message.
         """
         # block until there is a new message
         self.semaphore.acquire()
+
+        if self.to_stop:
+            raise StoppedException()
+
         with self.lock:
             message = self.message_queue.popleft()
 
         return message
+
+    def stop(self):
+        self.to_stop = True
+        # signal the receive semaphore to unblock
+        self.semaphore.release()
+
+        self.daemon.shutdown()
 
 
 # noinspection PyProtectedMember
@@ -123,6 +137,11 @@ def receive(client: Client):
 def send(client: Client):
     while True:
         text = input("message: ")
+
+        if text == "close":
+            client.stop()
+            break
+
         client.send_message(Message(client.id, text))
 
 if __name__ == "__main__":
