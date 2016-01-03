@@ -16,9 +16,16 @@ class FakeNameserver:
 
     def messages(self, start_index=-1, end_index=-1):
         if start_index < 0:
+            # return the all list of messages
             return self.list_messages
-        else:
-            return self.list_messages[start_index:end_index + 1]
+
+        if start_index > end_index or \
+                        start_index >= len(self.list_messages) or \
+                        end_index >= len(self.list_messages):
+            # indexes are invalid
+            raise AttributeError()
+
+        return self.list_messages[start_index:end_index + 1]
 
 
 nameserver = FakeNameserver()
@@ -43,10 +50,15 @@ class MessagesBlockHandler(webapp2.RequestHandler):
         start_index = int(start_index)
         end_index = int(end_index)
 
-        self.response.write("<h1>Messages from %d to %d:</h1>" % (start_index, end_index))
-        for message in nameserver.messages(start_index, end_index):
-            self.response.write("%s<br/>" % (message,))
-            # self.response.write("sender %s: %s<br/>" % (message.sender_id, message.text))
+        try:
+            self.response.write("<h1>Messages from %d to %d:</h1>" % (start_index, end_index))
+            for message in nameserver.messages(start_index, end_index):
+                self.response.write("%s<br/>" % (message,))
+                # self.response.write("sender %s: %s<br/>" % (message.sender_id, message.text))
+        except AttributeError:
+            # the indexes are invalid
+            self.response.status = '404 Not Found'
+            self.response.write("The indexes %d-%d are invalid" % (start_index, end_index))
 
 
 app = webapp2.WSGIApplication([
