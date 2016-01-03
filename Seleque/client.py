@@ -2,8 +2,6 @@ import socket
 import Pyro4
 from chat_server import Address
 
-name_server_uri = 'PYRO:name_server@localhost:63669'
-
 
 class RegisterError(Exception):
     pass
@@ -15,7 +13,7 @@ class Client:
     Implements all the clients actions and monitors its state.
     """
 
-    def __init__(self):
+    def __init__(self, name_server_uri):
         self.id = None
         self.room = None
         self.connection = None
@@ -107,6 +105,8 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
     Pyro4.config.SERIALIZER = 'pickle'
 
+    name_server_uri = 'PYRO:name_server@localhost:63669'
+
     import threading
 
     def input_loop(client_object):
@@ -117,15 +117,15 @@ if __name__ == "__main__":
         finally:
             print("".join(Pyro4.util.getPyroTraceback()))
 
-try:
-    client = Client()
-    client.join_room(input('room: '), input('nickname: '))
+    try:
+        client = Client(name_server_uri)
+        client.join_room(input('room: '), input('nickname: '))
 
-    threading.Thread(None, input_loop, (), {client}).start()
+        threading.Thread(None, input_loop, (), {client}).start()
 
-    while True:
-        for author, message in client.receive_message():
-            print('{0}: {1}'.format(author, message))
+        while True:
+            for author, message in client.receive_message():
+                print('{0}: {1}'.format(author, message))
 
-finally:
-    print("".join(Pyro4.util.getPyroTraceback()))
+    finally:
+        print("".join(Pyro4.util.getPyroTraceback()))
