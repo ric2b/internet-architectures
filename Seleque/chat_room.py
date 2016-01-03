@@ -72,3 +72,6 @@ class ChatRoom:
 
     def __iter__(self):
         return iter(self.clients.values())
+
+    def __eq__(self, other):
+        return self.room_id == other.room_id

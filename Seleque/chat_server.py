@@ -25,6 +25,14 @@ class ChatServer:
 
         self.buffer_size = buffer_size
         self.rooms = {}  # type: dict[RoomId: ChatRoom]
+
+        # store all the servers to which it is connected
+        # associating a server uri with a server
+        self.servers = {}  # type: dict[Pyro4.URI: ChatServer]
+
+        # associates the rooms with the server uris
+        self.room_server_uris = {}  # type: dict[RoomId: set[Pyro4.URI]]
+
         self.uri = None  # type: Pyro4.URI
         self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
@@ -58,18 +66,20 @@ class ChatServer:
             self.rooms[room_id].remove(client_id)
             raise InvalidIdError
 
-    # TODO adjust this method when implementing room sharing
+    # TODO adjust to room sharing
     def create_room(self, room_id: RoomId):
         """
         Creates a new room in the server.
 
         :param room_id: id for the new room.
+        :raises ValueError: if the room already exists.
         """
         if room_id in self.rooms:
             raise ValueError("there is already a room with the id=", room_id)
 
         self.rooms[room_id] = ChatRoom(room_id, self.buffer_size)
 
+    # TODO adjust to room sharing
     def send_message(self, room_id: RoomId, client_id: ClientId, message: Message):
         """
         Sends a message to all the clients in the server. Puts the message in the
@@ -107,6 +117,25 @@ class ChatServer:
         self.uri = self_uri
         self.name_server.register_server(self.uri)
 
+    def share_room(self, room_id: RoomId, *server_uris):
+        """
+        Asks the server to share a room with a list of other servers.
+
+        :param room_id: id of the room to share.
+        :param server_uris: the URIs of the servers to share the room with.
+        """
+        try:
+            self.create_room(room_id)
+        except ValueError:
+            # room already exists, add the server uris to the room
+            self.room_server_uris[room_id].update(server_uris)
+        else:
+            self.room_server_uris[room_id] = set(server_uris)
+
+        # establish a pyro connection if the given server uris are new
+        new_servers_uris = [server_uri for server_uri in server_uris if server_uri not in self.servers]
+        for server_uri in new_servers_uris:
+            self.servers[server_uri] = Pyro4.Proxy(server_uri)
 
 if __name__ == "__main__":
 
