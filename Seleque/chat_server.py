@@ -89,25 +89,16 @@ class ChatServer:
         :param room_id: id of the room to send the message to.
         :param client_id: id of the client sending the message.
         :param message: message to be sent.
-
-
         """
         # force the sender id to be the client id
         message.sender_id = client_id
         self.rooms[room_id].add_message(message)
 
-        # notify all clients of a new message
-        clients_to_remove = []
-        for client_info in self.rooms[room_id]:
-            try:
-                client_info.client.notify_message(message)
-            except Pyro4.errors.CommunicationError:
-                # this client has a broken connection
-                clients_to_remove.append(client_info.client_id)
+        # export the message to all of the servers sharing the room
+        for server_uri in self.room_server_uris[room_id]:
+            self.servers[server_uri].share_message(room_id, message)
 
-        # remove the clients with broken connections
-        for client_id in clients_to_remove:
-            self.rooms[room_id].remove(client_id)
+        self._notify_clients(room_id, message)
 
     def register_on_nameserver(self, self_uri: Pyro4.core.URI):
         """
@@ -136,6 +127,32 @@ class ChatServer:
         new_servers_uris = [server_uri for server_uri in server_uris if server_uri not in self.servers]
         for server_uri in new_servers_uris:
             self.servers[server_uri] = Pyro4.Proxy(server_uri)
+
+    def share_message(self, room_id: RoomId, message: Message):
+        """
+        Shares the message with the server. The server will export the message
+        to all of its clients.
+
+        :param room_id: id of the room to share the message with.
+        :param message: message to share.
+        """
+        self._notify_clients(room_id, message)
+
+    def _notify_clients(self, room_id: RoomId, message: Message):
+        # store the clients with broken connections on this list
+        clients_to_remove = []
+
+        # notify each client
+        for client_info in self.rooms[room_id]:
+            try:
+                client_info.client.notify_message(message)
+            except Pyro4.errors.CommunicationError:
+                # this client has a broken connection
+                clients_to_remove.append(client_info.client_id)
+
+        # remove the clients with broken connections
+        for client_id in clients_to_remove:
+            self.rooms[room_id].remove(client_id)
 
 if __name__ == "__main__":
 
