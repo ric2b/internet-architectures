@@ -1,9 +1,3 @@
-import socket
-
-from circular_list import PacketId
-from client_id import ClientId
-
-
 class ClientInformation:
 
     """
@@ -12,12 +6,13 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, client_id: ClientId, message_id: PacketId, connection: socket = None):
+    def __init__(self, client_id, message_id, client, nickname: str = None):
         self.client_id = client_id
+        self.nickname = nickname
         self.message_id = message_id
-        self.connection = connection
+        self.client = client
 
     def __str__(self):
-        return "Info(id=%s, packet_id=%s, %s)" % (self.client_id,
-                                                  self.message_id,
-                                                  "connected" if self.connection else "unconnected")
+        return "Info(id=%s: %s)" % (self.nickname, "connected" if self.connection else "unconnected")
+
+

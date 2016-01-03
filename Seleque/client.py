@@ -1,8 +1,15 @@
-import socket
-import Pyro4
-from chat_server import Address
+import threading
+from collections import deque
 
-name_server_uri = 'PYRO:name_server@localhost:63669'
+import Pyro4
+
+from chat_server import ChatServer
+from client_id import ClientId
+from message import Message
+from name_server import NameServer, InvalidIdError
+from room_id import RoomId
+
+name_server_uri = 'PYRO:name_server@localhost:55067'
 
 
 class RegisterError(Exception):
@@ -16,116 +23,114 @@ class Client:
     """
 
     def __init__(self):
-        self.id = None
-        self.room = None
-        self.connection = None
+
+        self.id = None  # type: ClientId
+        self.room_id = None
         self.server = None
+        self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
-        self.name_server = Pyro4.Proxy(name_server_uri)
+        # messages queue
+        self.message_queue = deque()
 
-    def register(self, server_uri: Pyro4.URI, room: str, nickname: str, ):
+        # pyro daemon for the client
+        # this must be stored to enable a clean shutdown of the client
+        self.daemon = Pyro4.Daemon()
+        self.client_uri = None
+
+        # synchronizes the accesses to the message buffer
+        self.lock = threading.Lock()
+        # used to signal the existence of new messages
+        self.semaphore = threading.Semaphore(0)
+
+    def _join_room(self, room_id: RoomId, nickname: str):
         """
-        Registers the client in the chat server with the given uri.
+        Joins a room with the given nickname.
 
-        :param server_uri: uri of the server to register to.
-        :param room:
-        :param nickname:
-        :raises: ConnectionRefusedError: if was not able connect to the server.
-        :raises: RegisterError: if the register process failed.
+        :param room_id: id of the room to register to.
+        :param nickname: nickname to assign the client.
         """
+        joined_successfully = False
+        while not joined_successfully:
+            # requests a server URI and a client id from the name server
+            client_id, server_uri = self.name_server.join_room(room_id)
 
-        server = Pyro4.Proxy(server_uri)
+            # generate the client's uri from the client id in order to be unique
+            client_uri = self.daemon.register(self, str(client_id))
 
-        # call the register method of the server to obtain an id and the server's address
-        client_id, server_address = server.request_id(room, nickname)
+            # get the server where from the server uri
+            server = Pyro4.Proxy(server_uri)  # type: ChatServer
+            try:
+                # register the client in the server
+                server.register(room_id, client_id, client_uri, nickname)
+            except InvalidIdError:
+                # retry to register
+                continue
+            else:
+                joined_successfully = True
+                self.server = server
+                self.client_uri = client_uri
+                self.id = client_id
+                self.room_id = room_id
 
-        # establish a TCP connection with the server
-        connection = socket.socket()
-        connection.connect((server_address.ip_address, server_address.port))
+            # initialize the pyro service for the client
+            threading.Thread(target=self.daemon.requestLoop).start()
 
-        # register in the server by providing the client assigned id
-        connection.send(client_id.hex.encode())
-
-        # wait for the server acknowledge
-        ack = connection.recv(32).decode()
-
-        if ack == "OK":
-            self.id = client_id
-            self.connection = connection
-            self.server = server
-        else:
-            raise RegisterError("failed to register with the server")
-
-    def join_room(self, room: str, nickname: str):
-        server_uri = self.name_server.join_room(room)
-        self.server = Pyro4.Proxy(server_uri)
-
-        self.register(server_uri, room, nickname)
-
-        self.room = room
-
-    def send_message(self, message):
+    def _send_message(self, message: Message):
         """
         Sends a message to all of the clients in the chat server.
 
         :param message: message to be sent.
         """
 
-        self.server.send_message(self.room, self.id, message)
+        self.server.send_message(self.room_id, self.id, message)
 
-    def receive_message(self):
+    def notify_message(self, message: Message):
+        with self.lock:
+            self.message_queue.append(message)
+        # indicate that there is a new message
+        self.semaphore.release()
+
+    def _receive_message(self):
         """
         Receives a message from the chat server. If there is no message available, it
         blocks until a new message is available.
 
         :return: the received message.
         """
+        # block until there is a new message
+        self.semaphore.acquire()
+        with self.lock:
+            message = self.message_queue.popleft()
 
-        self._wait_message()
-        # read the message
-        try:
-            return self.server.receive_pending(self.room, self.id)
-        except EOFError:
-            return None  # messages were already fetched
-        except LookupError:
-            raise NotImplementedError('Fetch from the beginning and warn the user')
+        return message
 
-    def _wait_message(self):
-        """
-        Blocks until a new message is ready to be received.
-        """
 
-        # wait for a signal from the server to unblock
-        self.connection.recv(32)
+# noinspection PyProtectedMember
+def receive(client: Client):
+    while True:
+        print(client._receive_message())
 
-    def __del__(self):
-        if self.connection:
-            self.connection.close()
+
+# noinspection PyProtectedMember
+def send(client: Client):
+    while True:
+        text = input("message: ")
+        client._send_message(Message(client.id, text))
 
 if __name__ == "__main__":
 
-    Pyro4.config.SERIALIZERS_ACCEPTED = 'pickle'
+    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    import threading
-
-    def input_loop(client_object):
-        print('ready for input: ')
-        try:
-            while True:
-                client_object.send_message(input())
-        finally:
-            print("".join(Pyro4.util.getPyroTraceback()))
-
-try:
     client = Client()
-    client.join_room(input('room: '), input('nickname: '))
+    # noinspection PyProtectedMember
+    client._join_room(RoomId(), "david")
 
-    threading.Thread(None, input_loop, (), {client}).start()
+    thread1 = threading.Thread(target=receive, args=[client])
+    thread2 = threading.Thread(target=send, args=[client])
 
-    while True:
-        for author, message in client.receive_message():
-            print('{0}: {1}'.format(author, message))
+    thread1.start()
+    thread2.start()
 
-finally:
-    print("".join(Pyro4.util.getPyroTraceback()))
+    thread1.join()
+    thread2.join()
