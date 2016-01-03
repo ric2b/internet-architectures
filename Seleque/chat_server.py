@@ -66,7 +66,6 @@ class ChatServer:
             self.rooms[room_id].remove(client_id)
             raise InvalidIdError
 
-    # TODO adjust to room sharing
     def create_room(self, room_id: RoomId):
         """
         Creates a new room in the server.
@@ -79,7 +78,6 @@ class ChatServer:
 
         self.rooms[room_id] = ChatRoom(room_id, self.buffer_size)
 
-    # TODO adjust to room sharing
     def send_message(self, room_id: RoomId, client_id: ClientId, message: Message):
         """
         Sends a message to all the clients in the server. Puts the message in the
@@ -96,7 +94,19 @@ class ChatServer:
 
         # export the message to all of the servers sharing the room
         for server_uri in self.room_server_uris[room_id]:
-            self.servers[server_uri].share_message(room_id, message)
+            try:
+                self.servers[server_uri].share_message(room_id, message)
+                
+            except Pyro4.errors.CommunicationError:
+                # server has failed
+                # notify the name server
+                self.name_server.remove_server(server_uri)
+                # remove the server from all rooms
+                for uris in self.room_server_uris.values():
+                    uris.discard(server_uri)
+
+                # remove the connection with the server
+                del self.servers[server_uri]
 
         self._notify_clients(room_id, message)
 
