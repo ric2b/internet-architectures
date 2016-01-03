@@ -95,7 +95,6 @@ class ChatServer:
         """
         # force the sender id to be the client id
         message.sender_id = client_id
-        self.rooms[room_id].add_message(message)
 
         # export the message to all of the servers sharing the room
         for server_uri in self.room_server_uris[room_id]:
