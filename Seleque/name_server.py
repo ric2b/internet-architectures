@@ -46,12 +46,18 @@ class NameServer:
         #  self.servers[server].rooms['testing'] = 0
 
     def remove_server(self, server: Pyro4.URI):
+        # TODO if the server has already been removed -> do nothing
+        # multiple servers can detect that a server failed
+
         self._server_order.remove(server)
 
         for room in self.servers[server].rooms:  # for each room served by the server...
             self.rooms[room].remove(server)  # remove the server from the room's list
 
         self.servers.pop(server)
+
+        # TODO notify all the servers sharing rooms with this server that the server was removed
+        # to unshare a room with a server use: server.unshare_room(room_id, server_uri)
 
     def list_servers(self):
         return list(self.servers.keys())
@@ -105,7 +111,7 @@ class NameServer:
                 if self.servers[server].clients < self.room_size:
                     return client_id, server
 
-            # TODO implement this for the shared rooms
+            # TODO exceed the capacity (by 50%?) of each server for this room and assign a server to this client
             # went trough all the current servers, all full
             print('Get another server for the room')
             raise NotImplementedError
@@ -143,7 +149,7 @@ class NameServer:
 
         return client_id
 
-    def remove_client(self, client: uuid, server: Pyro4.URI, room: str):
+    def remove_client(self, client: uuid, server: Pyro4.URI, room: RoomId):
         """
         Used so that the name server can keep track of how many clients each server has, by room.
         :param client: uuid
@@ -159,6 +165,10 @@ class NameServer:
             if len(self.rooms[room]) <= 0:
                 self.rooms.pop(room)  # if the room has no more servers, close
                 print('closed room {0} on server {1}'.format(room, server))
+
+            # TODO remove the room from the server: server.remove_room(room)
+            # TODO notify the other servers sharing this room that the server is no longer sharing the room
+            # use this method: server.unshare_room(room, failed_server)
 
 if __name__ == "__main__":
 
