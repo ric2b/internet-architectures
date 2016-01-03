@@ -32,18 +32,28 @@ class ChatRoom:
         # buffer with all the messages for this room
         self.messages_buffer = CircularList(self.buffer_capacity)
 
-    def register(self, client_id: ClientId, client_info: ClientInformation = None):
+    def register(self, client_id: ClientId, client, nickname: str = None):
         """
         Registers a new client in the room.
 
         :param client_id: id of the client to register.
-        :param client_info: information associated with the client
-        :raises ValueError: if the client is already registered
+        :param client: client object.
+        :param nickname: nickname to associate with the client.
+        :raises ValueError: if the client is already registered.
         """
         if client_id in self.clients:
             raise ValueError("a client with this id is already registered")
 
-        self.clients[client_id] = client_info
+        try:
+            # a new user only receives messages that are sent after registering:
+            # => the client must store the id of the current last message in the message buffer
+            last_message_id = self.messages_buffer.get_newest()[0]
+        except LookupError:
+            # there was no messages in the message buffer yet
+            # do not store any packet id
+            last_message_id = None
+
+        self.clients[client_id] = ClientInformation(last_message_id, client, nickname)
 
     def remove(self, client_id):
         """

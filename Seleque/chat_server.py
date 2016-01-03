@@ -24,7 +24,7 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, nickname: str, message_id, client):
+    def __init__(self, message_id, client, nickname: str = None):
         self.nickname = nickname
         self.message_id = message_id
         self.client = client
@@ -61,22 +61,15 @@ class ChatServer:
         :param nickname: nickname to associate with the client.
         :raises KeyError: if the room does not exist in the server.
         :raises InvalidIdError: if the client id is not correctly registered in the name server.
+        :raises ValueError: if the client id is already registered in the room.
         """
         # create a pyro connection with the client
         client = Pyro4.Proxy(client_uri)
 
         try:
-            # a new user only receives messages that are sent after registering:
-            # => the client must store the id of the current last message in the message buffer
-            last_message_id = self.rooms[room_id].get_newest()[0]
+            self.rooms[room_id].register(client_id, client, nickname)
         except KeyError:
             raise KeyError("there is no room with id=", str(room_id))
-        except LookupError:
-            # there was no messages in the message buffer yet
-            # do not store any packet id
-            last_message_id = None
-
-        self.rooms[room_id].register(client_id, ClientInformation(nickname, last_message_id, client))
 
         try:
             # register the client in the name server
