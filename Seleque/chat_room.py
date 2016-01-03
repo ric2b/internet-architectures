@@ -3,6 +3,7 @@ from socket import socket
 from client_information import ClientInformation
 from circular_list import CircularList
 from client_id import ClientId
+from message import Message
 from room_id import RoomId
 
 
@@ -53,7 +54,7 @@ class ChatRoom:
             # do not store any packet id
             last_message_id = None
 
-        self.clients[client_id] = ClientInformation(last_message_id, client, nickname)
+        self.clients[client_id] = ClientInformation(client_id, last_message_id, client, nickname)
 
     def remove(self, client_id):
         """
@@ -67,6 +68,9 @@ class ChatRoom:
             del self.clients[client_id]
         except KeyError:
             raise LookupError("client with id=%s does not exist" % (client_id,))
+
+    def add_message(self, message: Message):
+        self.messages_buffer.append(message)
 
     def __iter__(self):
         return iter(self.clients.values())

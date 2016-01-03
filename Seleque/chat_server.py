@@ -8,6 +8,7 @@ import Pyro4
 from chat_room import ChatRoom
 from circular_list import CircularList
 from client_id import ClientId
+from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
@@ -24,7 +25,8 @@ class ClientInformation:
     can not be altered.
     """
 
-    def __init__(self, message_id, client, nickname: str = None):
+    def __init__(self, client_id, message_id, client, nickname: str = None):
+        self.client_id = client_id
         self.nickname = nickname
         self.message_id = message_id
         self.client = client
@@ -92,38 +94,34 @@ class ChatServer:
 
         self.rooms[room_id] = ChatRoom(room_id, self.buffer_size)
 
-    def send_message(self, room, client_id: uuid, message):
+    def send_message(self, room_id: RoomId, client_id: ClientId, message: Message):
         """
         Sends a message to all the clients in the server. Puts the message in the
         message buffer and notifies all registered clients of the new message. If
         there any client with a broken connection they are removed.
 
-        :param room:
-        :param client_id:
+        :param room_id: id of the room to send the message to.
+        :param client_id: id of the client sending the message.
         :param message: message to be sent.
-        """
 
-        self.rooms[room].append((self.nicknames[client_id], message))
+
+        """
+        # force the sender id to be the client id
+        message.sender_id = client_id
+        self.rooms[room_id].add_message(message)
 
         # notify all clients of a new message
         clients_to_remove = []
-        room_clients = [self.clients[client] for client in self.room_clients[room]]
-        for client in room_clients:
+        for client_info in self.rooms[room_id]:
             try:
-                client.connection.send("NEW MESSAGE".encode())
-            except AttributeError:
-                # the client is no completely registered yet
-                # ignore this client and move to the next
-                pass
-            except socket.error:
+                client_info.client.notify_message(message)
+            except Pyro4.errors.CommunicationError:
                 # this client has a broken connection
-                client.connection.close()
-                clients_to_remove.append(client)
+                clients_to_remove.append(client_info.client_id)
 
         # remove the clients with broken connections
-        for client in clients_to_remove:
-            self.clients.pop(client)
-            self.room_clients[room].pop(client)
+        for client_id in clients_to_remove:
+            self.rooms[room_id].remove(client_id)
 
     def receive_pending(self, room: str, client_id):
         """

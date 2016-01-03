@@ -1,6 +1,9 @@
+from collections import deque
+
 import Pyro4
 
 from chat_server import ChatServer
+from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
@@ -19,14 +22,22 @@ class Client:
 
     def __init__(self):
         self.id = None
-        self.room = None
+        self.room_id = None
         self.server = None
         self.name_server = Pyro4.Proxy(name_server_uri) # type: NameServer
+
+        # messages queue
+        self.message_queue = deque()
 
         # pyro daemon for the client
         # this must be stored to enable a clean shutdown of the client
         self.daemon = Pyro4.Daemon()
         self.client_uri = None
+
+        # synchronizes the accesses to the message buffer
+        self.lock = threading.Lock()
+        # used to signal the existence of new messages
+        self.semaphore = threading.Semaphore(0)
 
     def _join_room(self, room_id: RoomId, nickname: str):
         """
@@ -56,34 +67,36 @@ class Client:
             else:
                 joined_successfully = True
 
-    def send_message(self, message):
+        self.room_id = room_id
+
+    def _send_message(self, message: Message):
         """
         Sends a message to all of the clients in the chat server.
 
         :param message: message to be sent.
         """
 
-        self.server.send_message(self.room, self.id, message)
+        self.server.send_message(self.room_id, self.id, message)
 
-    def receive_message(self):
+    def notify_message(self, message: Message):
+        with self.lock:
+            self.message_queue.append(message)
+        # indicate that there is a new message
+        self.semaphore.release()
+
+    def _receive_message(self):
         """
         Receives a message from the chat server. If there is no message available, it
         blocks until a new message is available.
 
         :return: the received message.
         """
+        # block until there is a new message
+        self.semaphore.acquire()
+        with self.lock:
+            message = self.message_queue.popleft()
 
-        self._wait_message()
-        # read the message
-        try:
-            return self.server.receive_pending(self.room, self.id)
-        except EOFError:
-            return None  # messages were already fetched
-        except LookupError:
-            raise NotImplementedError('Fetch from the beginning and warn the user')
-
-    def _wait_message(self):
-        pass
+        return message
 
 
 if __name__ == "__main__":
