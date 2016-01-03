@@ -76,8 +76,11 @@ class Client:
             threading.Thread(target=self.daemon.requestLoop).start()
 
     def leave_room(self):
-        # todo: this
-        return
+        self.server.leave_room(self.room_id, self.id)
+        self.id = None
+        self.room_id = None
+        self.server = None
+        self.client_uri = None
 
     def get_rooms(self):
         return self.name_server.list_rooms()
@@ -139,6 +142,7 @@ def send(client: Client):
         text = input("message: ")
 
         if text == "close":
+            client.leave_room()
             client.stop()
             break
 
