@@ -105,6 +105,7 @@ class NameServer:
                 if self.servers[server].clients < self.room_size:
                     return client_id, server
 
+            # TODO implement this for the shared rooms
             # went trough all the current servers, all full
             print('Get another server for the room')
             raise NotImplementedError

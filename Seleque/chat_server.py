@@ -128,6 +128,16 @@ class ChatServer:
         for server_uri in new_servers_uris:
             self.servers[server_uri] = Pyro4.Proxy(server_uri)
 
+    def unshare_room(self, room_id: RoomId, server_uri: Pyro4.URI):
+        """
+        Tells the server to stop sharing a room with another server.
+
+        :param room_id: id of the room to remove server.
+        :param server_uri: uri of the server to stop sharing with.
+        """
+        self.room_server_uris[room_id].discard(server_uri)
+        # TODO remove server connection when no room is using it
+
     def share_message(self, room_id: RoomId, message: Message):
         """
         Shares the message with the server. The server will export the message
