@@ -1,7 +1,3 @@
-from socket import socket
-
-from client_information import ClientInformation
-from circular_list import CircularList
 from client_id import ClientId
 from room_id import RoomId
 
@@ -14,32 +10,32 @@ class ChatRoom:
     A room can be iterated to get each client information.
     """
 
-    def __init__(self, room_id: RoomId, name: str, buffer_capacity: int):
+    def __init__(self, room_id: RoomId, name: str = None):
         """
-        Initializes the room with a unique identifier. It is created a message buffer
-        for the room with the given capacity.
+        Initializes the room with a unique identifier.
 
         :param room_id: id to be assigned to the room.
         :param name: name to be assigned to the room.
-        :param buffer_capacity: max capacity for the message buffer.
         """
         self.room_id = room_id
         self.name = name
-        self.buffer_capacity = buffer_capacity
 
-        # stores all the clients associated their respective information
+        # stores all the clients in the chat room
+        # associates the clients ids with their client object
         self.clients = {}
-        # buffer with all the messages for this room
-        self.messages_buffer = CircularList(self.buffer_capacity)
 
-    def register(self, client_id: ClientId, client_info: ClientInformation = None):
+    def register(self, client_id: ClientId, client):
         """
-        Registers a new client in the room.
+        Registers a new client in the room by adding the client to the client list.
 
         :param client_id: id of the client to register.
-        :param client_info: information associated with the client
+        :param client: client object.
+        :raises ValueError: if the client is already registered.
         """
-        self.clients[client_id] = client_info
+        if client_id in self.clients:
+            raise ValueError("a client is already registered with the id=%s" % (client_id,))
+
+        self.clients[client_id] = client
 
     def remove(self, client_id):
         """
@@ -50,13 +46,16 @@ class ChatRoom:
         """
 
         try:
-            client_connection = self.clients[client_id].connection # type: socket
-            if client_connection:
-                client_connection.close()
+            del self.clients[client_id]
         except KeyError:
             raise LookupError("client with id=%s does not exist" % (client_id,))
 
-        del self.clients[client_id]
+    @property
+    def client_count(self):
+        return len(self.clients)
 
     def __iter__(self):
-        return iter(self.clients.values())
+        return iter(self.clients.items())
+
+    def __eq__(self, other):
+        return self.room_id == other.room_id
