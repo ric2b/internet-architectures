@@ -1,5 +1,4 @@
 from client_information import ClientInformation
-from circular_list import CircularList
 from client_id import ClientId
 from message import Message
 from room_id import RoomId
@@ -13,23 +12,19 @@ class ChatRoom:
     A room can be iterated to get each client information.
     """
 
-    def __init__(self, room_id: RoomId, buffer_capacity: int, name: str = None):
+    def __init__(self, room_id: RoomId, name: str = None):
         """
         Initializes the room with a unique identifier. It is created a message buffer
         for the room with the given capacity.
 
         :param room_id: id to be assigned to the room.
         :param name: name to be assigned to the room.
-        :param buffer_capacity: max capacity for the message buffer.
         """
         self.room_id = room_id
         self.name = name
-        self.buffer_capacity = buffer_capacity
 
         # stores all the clients associated their respective information
         self.clients = {}
-        # buffer with all the messages for this room
-        self.messages_buffer = CircularList(self.buffer_capacity)
 
     def register(self, client_id: ClientId, client, nickname: str = None):
         """
@@ -67,8 +62,9 @@ class ChatRoom:
         except KeyError:
             raise LookupError("client with id=%s does not exist" % (client_id,))
 
-    def add_message(self, message: Message):
-        self.messages_buffer.append(message)
+    @property
+    def client_count(self):
+        return len(self.clients)
 
     def __iter__(self):
         return iter(self.clients.values())

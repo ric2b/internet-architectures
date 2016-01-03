@@ -13,17 +13,13 @@ Address = namedtuple('Address', ['ip_address', 'port'])
 
 
 class ChatServer:
-    def __init__(self, buffer_size):
+    def __init__(self):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
         mapping the clients ids to their information. Registers the server in the
         pyro daemon.
-
-        :param address: the complete address for the server to bound to.
-        :param buffer_size: the size of the message buffer.
         """
 
-        self.buffer_size = buffer_size
         self.rooms = {}  # type: dict[RoomId: ChatRoom]
 
         # store all the servers to which it is connected
@@ -76,7 +72,16 @@ class ChatServer:
         if room_id in self.rooms:
             raise ValueError("there is already a room with the id=", room_id)
 
-        self.rooms[room_id] = ChatRoom(room_id, self.buffer_size)
+        self.rooms[room_id] = ChatRoom(room_id)
+
+    def remove_room(self, room_id: RoomId):
+        """
+        Removes a room from the server.
+        :param room_id: id of the room to be removed.
+        """
+
+        del self.rooms[room_id]
+        del self.room_server_uris[room_id]
 
     def send_message(self, room_id: RoomId, client_id: ClientId, message: Message):
         """
@@ -96,7 +101,7 @@ class ChatServer:
         for server_uri in self.room_server_uris[room_id]:
             try:
                 self.servers[server_uri].share_message(room_id, message)
-                
+
             except Pyro4.errors.CommunicationError:
                 # server has failed
                 # notify the name server
@@ -180,7 +185,7 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    server = ChatServer(10)
+    server = ChatServer()
     # register the server in the pyro daemon
     daemon = Pyro4.Daemon()
     uri = daemon.register(server, 'chat_server')
