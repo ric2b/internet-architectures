@@ -34,7 +34,7 @@ class ClientInformation:
 
 
 class ChatServer:
-    def __init__(self, address: Address, buffer_size):
+    def __init__(self, buffer_size):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
         mapping the clients ids to their information. Registers the server in the
@@ -44,6 +44,7 @@ class ChatServer:
         :param buffer_size: the size of the message buffer.
         """
 
+        self.buffer_size = buffer_size
         self.rooms = {}  # type: dict[RoomId: ChatRoom]
         self.uri = None  # type: Pyro4.URI
         self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
@@ -65,9 +66,17 @@ class ChatServer:
         client = Pyro4.Proxy(client_uri)
 
         try:
-            self.rooms[room_id].register(client_id, ClientInformation(nickname, None, client))
+            # a new user only receives messages that are sent after registering:
+            # => the client must store the id of the current last message in the message buffer
+            last_message_id = self.rooms[room_id].get_newest()[0]
         except KeyError:
             raise KeyError("there is no room with id=", str(room_id))
+        except LookupError:
+            # there was no messages in the message buffer yet
+            # do not store any packet id
+            last_message_id = None
+
+        self.rooms[room_id].register(client_id, ClientInformation(nickname, last_message_id, client))
 
         try:
             # register the client in the name server
@@ -78,30 +87,17 @@ class ChatServer:
             self.rooms[room_id].remove(client_id)
             raise InvalidIdError
 
-    # TODO reimplement this to support the ChatRoom
-    def create_room(self, room: str):
-        self.rooms[room] = CircularList(self.buffer_size)
-        self.room_clients[room] = set()
-
-    def request_id(self, room: str, nickname: str):
+    # TODO adjust this method when implementing room sharing
+    def create_room(self, room_id: RoomId):
         """
-        Requests the server for a unique client id. The server will generate the
-        id, reserve it, and return it to the client along with its address. This
-        are required for a client to register to the server.
+        Creates a new room in the server.
 
-        :param nickname:
-        :param room:
-        :return: client id and the server's address.
+        :param room_id: id for the new room.
         """
+        if room_id in self.rooms:
+            raise ValueError("there is already a room with the id=", room_id)
 
-        # generate unique id for the new user
-        client = self.name_server.register_client(self.uri, room)
-        self.nicknames[client] = nickname
-        # register the client id but keep the client information empty
-        # the client information will be stored after the clients registers
-        self.clients[client] = room  # todo: fix this dirty hack
-
-        return client, self.address
+        self.rooms[room_id] = ChatRoom(room_id, self.buffer_size)
 
     def send_message(self, room, client_id: uuid, message):
         """
@@ -161,66 +157,10 @@ class ChatServer:
         self.name_server.register_server(self.uri)
         self.start_register()
 
+    # TODO must be reimplemented
     def start_register(self):
-        threading.Thread(target=self._register).start()
+        pass
 
-    def _register(self):
-        """
-        Creates a listening socket bound the server address, to listen for new
-        connections from clients that want to register in the server. When there
-        is a new connection it tries to register the client.
-        """
-
-        # create a socket to listen for new connections
-        listen_socket = socket.socket()
-
-        # DEBUG this function allows a port number to be used right after the
-        # application terminates
-        listen_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-        # bind the socket to the any interface and the port number 5000
-        listen_socket.bind((self.address.ip_address, self.address.port))
-
-        # put the socket in listening mode
-        listen_socket.listen(5)
-
-        while True:
-            # wait for a new connection
-            connection, address = listen_socket.accept()
-
-            # receive the client's id
-            client_id = connection.recv(32)
-            client_id = uuid.UUID(client_id.decode())
-
-            try:
-                self._register_client(client_id, connection)
-            except KeyError:
-                # there is no client with the provided id
-                connection.send("ERROR".encode())
-            else:
-                # notify the client that the registration was successful
-                connection.send("OK".encode())
-
-    def _register_client(self, client_id, connection):
-
-        # if the client_id does not exist then the registration is not valid
-        room = self.clients[client_id]
-        if type(room) != str:
-            raise KeyError
-
-        # a new user only receives messages that are sent after registering:
-        # => the client must store the id of the current last message in the message buffer
-        try:
-            # get the last message id
-            last_message_id = self.rooms[room].get_newest()[0]
-        except LookupError:
-            # there was no messages in the message buffer yet
-            # do not store any packet id
-            last_message_id = None
-
-        self.room_clients[room].add(client_id)
-        self.clients[client_id] = ClientInformation(
-                nickname=client_id, message_id=last_message_id, connection=connection)
 
 if __name__ == "__main__":
 

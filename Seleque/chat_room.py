@@ -14,7 +14,7 @@ class ChatRoom:
     A room can be iterated to get each client information.
     """
 
-    def __init__(self, room_id: RoomId, name: str, buffer_capacity: int):
+    def __init__(self, room_id: RoomId, buffer_capacity: int, name: str = None):
         """
         Initializes the room with a unique identifier. It is created a message buffer
         for the room with the given capacity.
