@@ -180,6 +180,14 @@ class ChatServer:
         for client_id in clients_to_remove:
             self.rooms[room_id].remove(client_id)
 
+    def leave_room(self, room_id: RoomId, client_id: ClientId):
+        self.rooms[room_id].remove(client_id)
+        if self.rooms[room_id].client_count == 0:
+            del self.rooms[room_id]
+
+        self.name_server.remove_client(client_id, self.uri, room_id)
+
+
 if __name__ == "__main__":
 
     # set pickle as the serializer used by pyro
