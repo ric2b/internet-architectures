@@ -98,7 +98,7 @@ class Client:
         # indicate that there is a new message
         self.semaphore.release()
 
-    def receive_message(self, timeout: float):
+    def receive_message(self):
         """
         Receives a message from the chat server. If there is no message available, it
         blocks until a new message is available.

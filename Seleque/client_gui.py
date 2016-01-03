@@ -25,7 +25,6 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.message_entry_box.setText('Not connected to any room')
         self.ui.send_button.setEnabled(False)
         self.ui.message_display_box.setText('')
-        #self.ui.room_drop_down.addItems(sorted(['ah', 'ble', 'sacre', 'alm'], key=str.lower))
         self.ui.room_drop_down.addItems(sorted(self.backend.get_rooms(), key=str.lower))
 
         # Connect up the buttons.
@@ -38,7 +37,6 @@ class ClientGui(QtGui.QMainWindow):
         # Set variables
         self.room = None
         self.nickname = None
-        self.timeout = 0.1
 
     def closeEvent(self, event):
         self.leave_room()
@@ -77,13 +75,15 @@ class ClientGui(QtGui.QMainWindow):
 
     def receive_messages(self):
         while self.room:
-            message = self.backend.receive_message(self.timeout)
+            message = self.backend.receive_message()
             if message:
                 color = 'blue' if message.sender_id == self.backend.id else 'red'
                 sender_nickname = self.backend.get_nickname(message.sender_id)
                 m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname,
                                                                     message.text, color)
                 self.ui.message_display_box.insertHtml(m)
+                #self.ui.message_display_box.ensureCursorVisible()
+
 
 if __name__ == "__main__":
     import sys

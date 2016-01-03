@@ -103,7 +103,7 @@ class NameServer:
         return server
 
     def share_room(self, room_id: RoomId, new_server: Pyro4.URI):
-        servers = self.rooms[room_id]
+        servers = [server for server in self.rooms[room_id] if server != new_server]
         self.servers[new_server].share_room(room_id, *servers)
 
         for server in servers:
