@@ -1,34 +1,29 @@
 
 class RoomId:
-
     """
-    Room identifier. This is unique for each chat room.
+    Room identifier. This is must be unique for each chat room.
     """
 
-    # this counter generates an unique number for each room id created
-    id_counter = 0
-
-    def __init__(self):
-        self.id = RoomId.id_counter
-        RoomId.id_counter += 1
+    def __init__(self, name):
+        self.name = name
 
     def __eq__(self, other):
-        return self.id == other.id
+        return self.name == other.name
 
     def __le__(self, other):
-        return self.id <= other.id
+        return self.name <= other.name
 
     def __lt__(self, other):
-        return self.id < other.id
+        return self.name < other.name
 
     def __ge__(self, other):
-        return self.id >= other.id
+        return self.name >= other.name
 
     def __gt__(self, other):
-        return self.id > other.id
+        return self.name > other.name
 
     def __hash__(self):
-        return self.id
+        return hash(self.name)
 
     def __str__(self):
-        return "%d" % (self.id,)
+        return self.name
