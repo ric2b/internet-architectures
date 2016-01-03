@@ -1,4 +1,3 @@
-from circular_list import PacketId
 from client_id import ClientId
 
 

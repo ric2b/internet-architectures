@@ -9,7 +9,8 @@ from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
-name_server_uri = 'PYRO:name_server@localhost:55067'
+with open("nameserver_uri.txt") as file:
+    name_server_uri = file.readline()
 
 
 class RegisterError(Exception):
@@ -75,7 +76,7 @@ class Client:
             # initialize the pyro service for the client
             threading.Thread(target=self.daemon.requestLoop).start()
 
-    def _send_message(self, message: Message):
+    def send_message(self, message: Message):
         """
         Sends a message to all of the clients in the chat server.
 
@@ -90,7 +91,7 @@ class Client:
         # indicate that there is a new message
         self.semaphore.release()
 
-    def _receive_message(self):
+    def receive_message(self):
         """
         Receives a message from the chat server. If there is no message available, it
         blocks until a new message is available.
@@ -108,14 +109,14 @@ class Client:
 # noinspection PyProtectedMember
 def receive(client: Client):
     while True:
-        print(client._receive_message())
+        print(client.receive_message())
 
 
 # noinspection PyProtectedMember
 def send(client: Client):
     while True:
         text = input("message: ")
-        client._send_message(Message(client.id, text))
+        client.send_message(Message(client.id, text))
 
 if __name__ == "__main__":
 
@@ -124,7 +125,7 @@ if __name__ == "__main__":
 
     client = Client()
     # noinspection PyProtectedMember
-    client._join_room(RoomId(), "david")
+    client._join_room(RoomId("room name"), "david")
 
     thread1 = threading.Thread(target=receive, args=[client])
     thread2 = threading.Thread(target=send, args=[client])

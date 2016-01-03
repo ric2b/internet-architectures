@@ -7,7 +7,8 @@ from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
 
-name_server_uri = 'PYRO:name_server@localhost:55067'
+with open("nameserver_uri.txt") as file:
+    name_server_uri = file.readline()
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
@@ -49,7 +50,7 @@ class ChatServer:
         # create a pyro connection with the client
         client = Pyro4.Proxy(client_uri)
         try:
-            self.rooms[room_id].register(client_id, client, nickname)
+            self.rooms[room_id].register(client_id, client)
         except KeyError:
             raise KeyError("there is no room with id=", str(room_id))
 
@@ -73,6 +74,7 @@ class ChatServer:
             raise ValueError("there is already a room with the id=", room_id)
 
         self.rooms[room_id] = ChatRoom(room_id)
+        self.room_server_uris[room_id] = set()
 
     def remove_room(self, room_id: RoomId):
         """
@@ -167,12 +169,12 @@ class ChatServer:
         clients_to_remove = []
 
         # notify each client
-        for client_info in self.rooms[room_id]:
+        for client_id, client in self.rooms[room_id]:
             try:
-                client_info.client.notify_message(message)
+                client.notify_message(message)
             except Pyro4.errors.CommunicationError:
                 # this client has a broken connection
-                clients_to_remove.append(client_info.client_id)
+                clients_to_remove.append(client_id)
 
         # remove the clients with broken connections
         for client_id in clients_to_remove:

@@ -1,6 +1,4 @@
-from client_information import ClientInformation
 from client_id import ClientId
-from message import Message
 from room_id import RoomId
 
 
@@ -57,7 +55,7 @@ class ChatRoom:
         return len(self.clients)
 
     def __iter__(self):
-        return iter(self.clients.keys())
+        return iter(self.clients.items())
 
     def __eq__(self, other):
         return self.room_id == other.room_id

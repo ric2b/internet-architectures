@@ -177,5 +177,9 @@ if __name__ == "__main__":
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(NameServer(4), 'name_server')
-    print("Ready. Object uri =", uri)
+
+    # store the uri of the nameserver in a file
+    with open("nameserver_uri.txt", mode='w') as file:
+        file.write(str(uri))
+
     daemon.requestLoop()
