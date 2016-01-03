@@ -24,6 +24,8 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.message_entry_box.setText('Not connected to any room')
         self.ui.send_button.setEnabled(False)
         self.ui.message_display_box.setText('')
+        self.ui.room_drop_down.addItems(sorted(['ah', 'ble', 'sacre', 'alm'], key=str.lower))
+        # self.ui.room_drop_down.addItems(sorted(self.backend.get_rooms(), key=str.lower))
 
         # Connect up the buttons.
         self.ui.join_button.clicked.connect(self.join_room)
@@ -87,4 +89,5 @@ if __name__ == "__main__":
     sys.exit(app.exec_())
 
 # todo: backend receive_message should only return when new messages show up
+# todo: backend should allow fetching of rooms
 
