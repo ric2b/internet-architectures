@@ -4,7 +4,7 @@ import threading
 
 from chat_server import Address
 from client_design import Ui_MainWindow  # pyuic4 -x file.ui -o output.py
-from client import Client
+from client import Client, StoppedException
 from message import Message
 
 
@@ -44,6 +44,7 @@ class ClientGui(QtGui.QMainWindow):
 
     def closeEvent(self, event):
         self.leave_room()
+        self.backend.stop()
         super().closeEvent(event)
         sys.exit()
 
@@ -89,10 +90,13 @@ class ReceiveThread(QtCore.QThread):
         self.backend = backend
 
     def run(self):
-        while self.backend.room_id:
-            message = self.backend.receive_message()
-            if message:
-                self.new_message.emit(message)
+        while True:
+            try:
+                message = self.backend.receive_message()
+                if message:
+                    self.new_message.emit(message)
+            except StoppedException:
+                break
 
 
 if __name__ == "__main__":
