@@ -12,12 +12,18 @@ class InvalidIdError(AttributeError):
 class ServerInfo:
     def __init__(self, server_uri):
         self.clients = 0
-        self.rooms = {}
+        self.rooms = {}  # type: dict[RoomId: int]
         self._server = Pyro4.Proxy(server_uri)
 
-    def create_room(self, room: str):
-        self._server.create_room(room)
-        self.rooms[room] = 0
+    def create_room(self, room_id: RoomId):
+        self._server.create_room(room_id)
+        self.rooms[room_id] = 0
+
+    def share_room(self, room_id: RoomId, *servers: Pyro4.URI):
+        self._server.share_room(room_id, *servers)
+
+    def close_room(self, room_id: RoomId):
+        self._server.remove_room(room_id)
 
     def take_down(self):
         raise NotImplementedError
@@ -27,12 +33,14 @@ class ServerInfo:
 class NameServer:
 
     def __init__(self, room_size: int):
-        self.rooms = {}
+        self.rooms = {}  # type: dict[str: list[Pyro4.URI]]
         self.room_size = room_size
         self.room_size_increment = 0.5*room_size
-        self.clients = {}   # maps a client to its nickname
-        self.servers = {}
-        self._server_order = []  # for round robin assignment of rooms to servers
+        # maps a client to its nickname
+        self.clients = {}  # type: dict[uuid: str]
+        self.servers = {}  # type: dict[Pyro4.URI: ServerInfo]
+        # for round robin assignment of rooms to servers
+        self._server_order = []  # type: list[Pyro4.URI]
         self._next_server = 0
 
     def register_server(self, server: Pyro4.URI):
@@ -42,19 +50,19 @@ class NameServer:
         self.servers[server] = ServerInfo(server)
         self._server_order.append(server)
 
-        #  self.rooms['testing'] = server
-        #  self.servers[server].rooms['testing'] = 0
-
-    def remove_server(self, server: Pyro4.URI):
+    def remove_server(self, removed_server: Pyro4.URI):
         # TODO if the server has already been removed -> do nothing
         # multiple servers can detect that a server failed
 
-        self._server_order.remove(server)
+        if removed_server in self.servers:
+            self._server_order.remove(removed_server)
 
-        for room in self.servers[server].rooms:  # for each room served by the server...
-            self.rooms[room].remove(server)  # remove the server from the room's list
+            for room in self.servers[removed_server].rooms:  # for each room served by the server...
+                self.rooms[room].remove(removed_server)  # remove the server from the room's list
+                for server in self.rooms[room]:
+                    self.servers[server].unshare_room(room, removed_server)
 
-        self.servers.pop(server)
+            self.servers.pop(removed_server)
 
         # TODO notify all the servers sharing rooms with this server that the server was removed
         # to unshare a room with a server use: server.unshare_room(room_id, server_uri)
@@ -85,11 +93,21 @@ class NameServer:
                 raise ConnectionRefusedError('The system has no servers registered')
 
         self.servers[server].create_room(room)
-        self.rooms[room] = {server}
+        try:
+            self.rooms[room].append(server)
+        except KeyError:  # room doesn't exist on any servers
+            self.rooms[room] = [server]
 
         print('created room {0} on server {1}'.format(room, server))
 
         return server
+
+    def share_room(self, room_id: RoomId, new_server: Pyro4.URI):
+        servers = [server for server in self.rooms[room_id] if server != new_server]
+        self.servers[new_server].share_room(room_id, *servers)
+
+        for server in servers:
+            self.servers[server].share_room(room_id, new_server)
 
     def join_room(self, room_id: RoomId):
         """
@@ -108,17 +126,20 @@ class NameServer:
             # look over the servers for the room
             for server in self.rooms[room_id]:
                 # if any has less than self.room_size clients, send the client
-                if self.servers[server].clients < self.room_size:
+                if self.servers[server].rooms[room_id] < self.room_size:
                     return client_id, server
 
             # TODO exceed the capacity (by 50%?) of each server for this room and assign a server to this client
             # went trough all the current servers, all full
-            print('Get another server for the room')
-            raise NotImplementedError
+            print('Getting another server for room {}'.format(room_id))
 
-            # All servers completely full, raise self.room_size?
-            # self.room_size += self.room_size_increment
-            # self.rooms[room_name].add(server)
+            try:
+                server_uri = self.create_room(room_id)
+                self.share_room(room_id, server_uri)
+            except LookupError:
+                # all servers completely full, raise self.room_size
+                self.room_size += self.room_size_increment
+                raise LookupError
 
         else:  # room doesn't exist yet, create it
             server_uri = self.create_room(room_id)
@@ -128,7 +149,7 @@ class NameServer:
     def get_nickname(self, client_id: ClientId):
             return self.clients[client_id]
 
-    def register_client(self, client_id: ClientId, server_uri: Pyro4.URI, room_id: RoomId, nickname: str):
+    def register_client(self, client_id: ClientId, server: Pyro4.URI, room_id: RoomId, nickname: str):
         """
         Registers the client in the name server associated with the server where the
         client is registered on. It also associates the client with a nickname enabling
@@ -136,7 +157,7 @@ class NameServer:
         the name server can keep track of how many clients each server has, by room.
 
         :param client_id: id of the client.
-        :param server_uri: uri of the server where the client is registered.
+        :param server: uri of the server where the client is registered.
         :param room_id: id of the room where the client is registered.
         :param nickname: nickname associated with the client.
         :raises InvalidIdError: if the client id is not valid.
@@ -148,7 +169,8 @@ class NameServer:
         # associate the client with its nickname
         self.clients[client_id] = nickname
         # increase the count of clients in the given server and room pair
-        self.servers[server_uri].rooms[room_id] += 1
+        self.servers[server].clients += 1
+        self.servers[server].rooms[room_id] += 1
 
         return client_id
 
@@ -160,6 +182,7 @@ class NameServer:
         :param room: str
         """
         del self.clients[client]
+        self.servers[server].clients -= 1
         self.servers[server].rooms[room] -= 1
 
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
@@ -168,6 +191,11 @@ class NameServer:
             if len(self.rooms[room]) <= 0:
                 self.rooms.pop(room)  # if the room has no more servers, close
                 print('closed room {0} on server {1}'.format(room, server))
+
+            else:
+                self.servers[server].remove_room(room)
+                for shared_server in self.rooms[room]:
+                    self.servers[shared_server].unshare(room, server)
 
             # TODO remove the room from the server: server.remove_room(room)
             # TODO notify the other servers sharing this room that the server is no longer sharing the room
@@ -179,7 +207,7 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZER = 'pickle'
 
     daemon = Pyro4.Daemon()
-    uri = daemon.register(NameServer(4), 'name_server')
+    uri = daemon.register(NameServer(2), 'name_server')
 
     # store the uri of the nameserver in a file
     with open("nameserver_uri.txt", mode='w') as file:

@@ -1,4 +1,4 @@
-from PyQt4 import QtGui
+from PyQt4 import QtGui, QtCore
 import Pyro4
 import threading
 
@@ -7,7 +7,10 @@ from client_design import Ui_MainWindow  # pyuic4 -x file.ui -o output.py
 from client import Client
 from message import Message
 
+
 class ClientGui(QtGui.QMainWindow):
+    message_signal = QtCore.pyqtSignal(Message)
+
     def __init__(self, backend):
         super().__init__()
 
@@ -17,7 +20,8 @@ class ClientGui(QtGui.QMainWindow):
 
         # Set up the backend communication
         self.backend = backend
-        self.receive_thread = threading.Thread(target=self.receive_messages)
+        self.receive_thread = ReceiveThread(self.message_signal, self.backend)
+        self.message_signal.connect(self.receive_messages)
 
         # Make some local modifications.
         self.setWindowTitle('Seléque (not in a room)')
@@ -25,7 +29,6 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.message_entry_box.setText('Not connected to any room')
         self.ui.send_button.setEnabled(False)
         self.ui.message_display_box.setText('')
-        #self.ui.room_drop_down.addItems(sorted(['ah', 'ble', 'sacre', 'alm'], key=str.lower))
         self.ui.room_drop_down.addItems(sorted(self.backend.get_rooms(), key=str.lower))
 
         # Connect up the buttons.
@@ -38,14 +41,9 @@ class ClientGui(QtGui.QMainWindow):
         # Set variables
         self.room = None
         self.nickname = None
-        self.timeout = 0.1
 
     def closeEvent(self, event):
         self.leave_room()
-        try:
-            self.receive_thread.join()
-        except RuntimeError:
-            pass
         super().closeEvent(event)
         sys.exit()
 
@@ -75,15 +73,27 @@ class ClientGui(QtGui.QMainWindow):
             self.ui.message_entry_box.setText('')
             self.backend.send_message(Message(self.backend.id, message))
 
-    def receive_messages(self):
-        while self.room:
-            message = self.backend.receive_message(self.timeout)
+    def receive_messages(self, message):
+        color = 'blue' if message.sender_id == self.backend.id else 'red'
+        sender_nickname = self.backend.get_nickname(message.sender_id)
+        m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname,
+                                                            message.text, color)
+        self.ui.message_display_box.insertHtml(m)
+        self.ui.message_display_box.ensureCursorVisible()
+
+
+class ReceiveThread(QtCore.QThread):
+    def __init__(self, signal, backend):
+        QtCore.QThread.__init__(self)
+        self.new_message = signal
+        self.backend = backend
+
+    def run(self):
+        while self.backend.room_id:
+            message = self.backend.receive_message()
             if message:
-                color = 'blue' if message.sender_id == self.backend.id else 'red'
-                sender_nickname = self.backend.get_nickname(message.sender_id)
-                m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname,
-                                                                    message.text, color)
-                self.ui.message_display_box.insertHtml(m)
+                self.new_message.emit(message)
+
 
 if __name__ == "__main__":
     import sys
