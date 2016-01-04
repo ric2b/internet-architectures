@@ -1,5 +1,5 @@
 import webapp2
-
+from google.appengine.ext import db
 
 class FakeNameserver:
     def __init__(self):
@@ -48,16 +48,37 @@ class MessagesBlockHandler(webapp2.RequestHandler):
             self.response.write("%s<br/>" % (message,))
             # self.response.write("sender %s: %s<br/>" % (message.sender_id, message.text))
 
+class Message(db.Model):
+    text = db.StringProperty(required=True)
+    author = db.StringProperty(required=True)
+    date_time = db.DateTimeProperty(auto_now_add=True)
+
+class AddMessage(webapp2.RequestHandler):
+    def get(self):
+        text = 'testing'
+        author = 'GLaDOS'
+        new_message = Message(text=text, author=author)
+        new_message.put()
+        self.response.out.write('message added')
+
+class SeeMessages(webapp2.RequestHandler):
+    def get(self):
+        messages = db.GqlQuery('SELECT * FROM Message')
+        for message in messages:
+            self.response.out.write(message.text + '<br>')
+
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-        self.response.write('Hello world4!')
+        self.response.write('Welcome to Seleque!')
 
 app = webapp2.WSGIApplication([
     ('/count', CountHandler),
     ('/messages', MessagesHandler),
     webapp2.Route(r'/messages/<:\d+>/<:\d+>', MessagesBlockHandler),
-    ('/', MainHandler)
+    ('/', MainHandler),
+    ('/addMessage', AddMessage),
+    ('/SeeMessages', SeeMessages)
 ], debug=True)
 
 #app = webapp2.WSGIApplication([
