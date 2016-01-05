@@ -107,22 +107,27 @@ class ChatServer:
         # force the sender id to be the client id
         message.sender_id = client_id
 
+        servers_to_remove = []  # list with the servers that need to be removed
+
         # export the message to all of the servers sharing the room
         for server_uri in self.room_server_uris[room_id]:
             try:
                 self.servers[server_uri].share_message(room_id, message)
-
             except Pyro4.errors.CommunicationError:
                 # server has failed
-                # notify the name server
-                self.name_server.remove_server(server_uri)
-                print("SERVER: lost connection with server '{}'. Name server notified.".format(server_uri))
-                # remove the server from all rooms
-                for uris in self.room_server_uris.values():
-                    uris.discard(server_uri)
-                # todo: avoid 'RuntimeError: Set changed size during iteration' by doing what's done for clients
-                # remove the connection with the server
-                del self.servers[server_uri]
+                servers_to_remove.append(server_uri)
+
+        for server_uri in servers_to_remove:
+            # notify the name server
+            self.name_server.remove_server(server_uri)
+            print("SERVER: lost connection with server '{}'. Name server notified.".format(server_uri))
+
+            # remove the server from all rooms
+            for uris in self.room_server_uris.values():
+                uris.discard(server_uri)
+
+            # remove the connection with the server
+            del self.servers[server_uri]
 
         self._notify_clients(room_id, message)
 
