@@ -52,7 +52,11 @@ class Client:
         joined_successfully = False
         while not joined_successfully:
             # requests a server URI and a client id from the name server
-            client_id, server_uri = self.name_server.join_room(room_id)
+            try:
+                client_id, server_uri = self.name_server.join_room(room_id)
+            except LookupError:
+                # retry to register
+                continue
 
             # generate the client's uri from the client id in order to be unique
             if not self.client_uri:

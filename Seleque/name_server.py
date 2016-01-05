@@ -37,14 +37,14 @@ class ServerInfo:
 class NameServer:
 
     def __init__(self, room_size: int):
-        self.rooms = {}  # type: dict[str: list[Pyro4.URI]]
+        self.rooms = {}  # type: dict[str: [Pyro4.URI]]
         self.room_size = room_size
         self.room_size_increment = 0.5*room_size
         # maps a client to its nickname
         self.clients = {}  # type: dict[uuid: str]
         self.servers = {}  # type: dict[Pyro4.URI: ServerInfo]
         # for round robin assignment of rooms to servers
-        self._server_order = []  # type: list[Pyro4.URI]
+        self._server_order = []  # type: [Pyro4.URI]
         self._next_server = 0
 
     def register_server(self, server: Pyro4.URI):
@@ -83,8 +83,14 @@ class NameServer:
         :return server: uri
         """
         try:
-            server = self._server_order[self._next_server]  # Round robin distribution of rooms
-            self._next_server = (self._next_server + 1) % len(self._server_order)
+            # Round robin distribution of rooms
+            server = self._server_order[0]
+            for i in range(len(self.servers)):
+                server = self._server_order[self._next_server]
+                self._next_server = (self._next_server + 1) % len(self._server_order)
+                if room in self.rooms:
+                    if server not in self.rooms[room]:
+                        break
 
         except IndexError:  # Maybe some servers went down and the list is now smaller
             try:
@@ -92,7 +98,13 @@ class NameServer:
             except IndexError:  # There are no servers
                 raise ConnectionRefusedError('The system has no servers registered')
 
-        self.servers[server].create_room(room)
+        try:
+            self.servers[server].create_room(room)
+        except ValueError:  # there are no available servers, raise the limit
+            print("SERVER: increasing room size, no more free servers."
+                  " done because of room '{0}'".format(room))
+            self.room_size += self.room_size_increment
+
         try:
             self.rooms[room].append(server)
         except KeyError:  # room doesn't exist on any servers
@@ -130,13 +142,8 @@ class NameServer:
                     return client_id, server
 
             print("ROOM: servers for room '{}' are full, getting another server".format(room_id))
-            try:
-                server_uri = self.create_room(room_id)
-                self.share_room(room_id, server_uri)
-            except LookupError:
-                # all servers completely full, raise self.room_size
-                self.room_size += self.room_size_increment
-                raise LookupError
+            server_uri = self.create_room(room_id)
+            self.share_room(room_id, server_uri)
 
         else:  # room doesn't exist yet, create it
             server_uri = self.create_room(room_id)

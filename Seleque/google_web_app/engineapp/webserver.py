@@ -116,7 +116,7 @@ class MainHandler(webapp2.RequestHandler):
         self.response.write(template.render('index.html', {}))
 
 app = webapp2.WSGIApplication([
-    webapp2.Route('/<room_id>/count', handler=CountHandler, name='room_id'),
+    webapp2.Route('/<room_id>/messagecount', handler=CountHandler, name='room_id'),
     webapp2.Route('/<room_id>/messages', handler=MessagesHandler, name='room_id'),
     ('/', MainHandler),
     webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id')
