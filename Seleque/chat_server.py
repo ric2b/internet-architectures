@@ -1,6 +1,9 @@
 import Pyro4
 
 from collections import namedtuple
+
+from requests import post
+
 from chat_room import ChatRoom
 from client_id import ClientId
 from message import Message
@@ -9,6 +12,8 @@ from room_id import RoomId
 
 with open("nameserver_uri.txt") as file:
     name_server_uri = file.readline()
+
+webserver_url = "http://127.0.0.1:8080"
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
@@ -115,6 +120,13 @@ class ChatServer:
                 del self.servers[server_uri]
 
         self._notify_clients(room_id, message)
+
+        # store message in the web server
+        data = {'sender_id': message.sender_id,
+                'nickname': "cool nickname",
+                'text': message.text}
+
+        post(webserver_url + "/addmessage", data=data)
 
     def register_on_nameserver(self, self_uri: Pyro4.core.URI):
         """
