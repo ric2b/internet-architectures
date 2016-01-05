@@ -81,6 +81,8 @@ class ChatServer:
         self.rooms[room_id] = ChatRoom(room_id)
         self.room_server_uris[room_id] = set()
 
+        print("ROOM: created room '{}'".format(room_id))
+
     def remove_room(self, room_id: RoomId):
         """
         Removes a room from the server.
@@ -89,6 +91,8 @@ class ChatServer:
 
         del self.rooms[room_id]
         del self.room_server_uris[room_id]
+
+        print("ROOM: closing room '{}' because there are no clients connected".format(room_id))
 
     def send_message(self, room_id: RoomId, client_id: ClientId, message: Message):
         """
@@ -112,10 +116,11 @@ class ChatServer:
                 # server has failed
                 # notify the name server
                 self.name_server.remove_server(server_uri)
+                print("SERVER: lost connection with server '{}'. Name server notified.".format(server_uri))
                 # remove the server from all rooms
                 for uris in self.room_server_uris.values():
                     uris.discard(server_uri)
-
+                # todo: avoid 'RuntimeError: Set changed size during iteration' by doing what's done for clients
                 # remove the connection with the server
                 del self.servers[server_uri]
 
@@ -156,6 +161,8 @@ class ChatServer:
         for server_uri in new_servers_uris:
             self.servers[server_uri] = Pyro4.Proxy(server_uri)
 
+        print("ROOM: now sharing room '{0}' with '{1}'".format(room_id, new_servers_uris))
+
     def unshare_room(self, room_id: RoomId, server_uri: Pyro4.URI):
         """
         Tells the server to stop sharing a room with another server.
@@ -165,6 +172,8 @@ class ChatServer:
         """
         self.room_server_uris[room_id].discard(server_uri)
         # TODO remove server connection when no room is using it
+
+        print("ROOM: no longer sharing room '{0}' with '{1}'".format(room_id, server_uri))
 
     def share_message(self, room_id: RoomId, message: Message):
         """
@@ -191,12 +200,13 @@ class ChatServer:
         # remove the clients with broken connections
         for client_id in clients_to_remove:
             self.rooms[room_id].remove(client_id)
+            # todo: detect if the room should close
 
     def leave_room(self, room_id: RoomId, client_id: ClientId):
         self.rooms[room_id].remove(client_id)
         if self.rooms[room_id].client_count == 0:
             del self.rooms[room_id]
-
+            print("ROOM: closed room '{0}' since it had no more clients".format(room_id))
         self.name_server.remove_client(client_id, self.uri, room_id)
 
 

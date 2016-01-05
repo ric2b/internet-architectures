@@ -19,11 +19,15 @@ class ServerInfo:
         self._server.create_room(room_id)
         self.rooms[room_id] = 0
 
+    def close_room(self, room_id: RoomId):
+        pass
+        # self._server.remove_room(room_id)
+
     def share_room(self, room_id: RoomId, *servers: Pyro4.URI):
         self._server.share_room(room_id, *servers)
 
-    def close_room(self, room_id: RoomId):
-        self._server.remove_room(room_id)
+    def unshare_room(self, room_id: RoomId, *servers: Pyro4.URI):
+        self._server.unshare_room(room_id, *servers)
 
     def take_down(self):
         raise NotImplementedError
@@ -50,10 +54,9 @@ class NameServer:
         self.servers[server] = ServerInfo(server)
         self._server_order.append(server)
 
-    def remove_server(self, removed_server: Pyro4.URI):
-        # TODO if the server has already been removed -> do nothing
-        # multiple servers can detect that a server failed
+        print("SERVER: server '{}' has registered".format(server))
 
+    def remove_server(self, removed_server: Pyro4.URI):
         if removed_server in self.servers:
             self._server_order.remove(removed_server)
 
@@ -63,9 +66,6 @@ class NameServer:
                     self.servers[server].unshare_room(room, removed_server)
 
             self.servers.pop(removed_server)
-
-        # TODO notify all the servers sharing rooms with this server that the server was removed
-        # to unshare a room with a server use: server.unshare_room(room_id, server_uri)
 
     def list_servers(self):
         return list(self.servers.keys())
@@ -98,7 +98,7 @@ class NameServer:
         except KeyError:  # room doesn't exist on any servers
             self.rooms[room] = [server]
 
-        print('created room {0} on server {1}'.format(room, server))
+        print("ROOM: created room '{0}' on server '{1}'".format(room, server))
 
         return server
 
@@ -129,10 +129,7 @@ class NameServer:
                 if self.servers[server].rooms[room_id] < self.room_size:
                     return client_id, server
 
-            # TODO exceed the capacity (by 50%?) of each server for this room and assign a server to this client
-            # went trough all the current servers, all full
-            print('Getting another server for room {}'.format(room_id))
-
+            print("ROOM: servers for room '{}' are full, getting another server".format(room_id))
             try:
                 server_uri = self.create_room(room_id)
                 self.share_room(room_id, server_uri)
@@ -188,18 +185,16 @@ class NameServer:
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
             self.servers[server].rooms.pop(room)  # the room is no longer on the server
             self.rooms[room].remove(server)  # the room no longer uses this server
+
             if len(self.rooms[room]) <= 0:
-                self.rooms.pop(room)  # if the room has no more servers, close
-                print('closed room {0} on server {1}'.format(room, server))
-
+                del self.rooms[room]  # if the room has no more servers, close
+                print("ROOM: closed room '{0}', no longer on any server".format(room, server))
             else:
-                self.servers[server].remove_room(room)
+                self.servers[server].close_room(room)
                 for shared_server in self.rooms[room]:
-                    self.servers[shared_server].unshare(room, server)
+                    self.servers[shared_server].unshare_room(room, server)
+                print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
 
-            # TODO remove the room from the server: server.remove_room(room)
-            # TODO notify the other servers sharing this room that the server is no longer sharing the room
-            # use this method: server.unshare_room(room, failed_server)
 
 if __name__ == "__main__":
 

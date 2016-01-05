@@ -59,6 +59,7 @@ class Client:
 
             # get the server where from the server uri
             server = Pyro4.Proxy(server_uri)  # type: ChatServer
+            print("joined room '{0}' on server '{1}'".format(room_id, server_uri))
             try:
                 # register the client in the server
                 server.register(room_id, client_id, client_uri, nickname)
