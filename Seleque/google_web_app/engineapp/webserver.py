@@ -1,5 +1,8 @@
 import webapp2
 from google.appengine.ext import db
+from google.appengine.ext import ndb
+
+import counters as counters
 
 
 def get_room_messages(room_id):
@@ -44,13 +47,14 @@ class AddMessage(webapp2.RequestHandler):
         new_message = Message(text=text, author=author, parent=room)
         new_message.put()
 
+        counters.increment(room_id)
         self.response.out.write('message added')
 
 
 class CountHandler(webapp2.RequestHandler):
     def get(self, room_id):
         try:
-            self.response.write("message count = %s" % (get_room_messages(room_id).count(),))
+            self.response.write("message count = %s" % (counters.get_count(room_id),))
         except AttributeError:
             not_found_room(self.response, room_id)
 
@@ -92,4 +96,3 @@ app = webapp2.WSGIApplication([
     ('/', MainHandler),
     webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id')
 ], debug=True)
-
