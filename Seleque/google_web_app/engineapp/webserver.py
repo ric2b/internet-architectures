@@ -53,10 +53,10 @@ class AddMessage(webapp2.RequestHandler):
 
 class CountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        try:
-            self.response.write("message count = %s" % (counters.get_count(room_id),))
-        except AttributeError:
-            not_found_room(self.response, room_id)
+        if Room.get_by_key_name([room_id])[0]:
+            self.response.write("message count = %s" % (counters.get_count(room_id),))    
+        else:
+            not_found_room(self.response, room_id)        
 
 
 class MessagesHandler(webapp2.RequestHandler):
