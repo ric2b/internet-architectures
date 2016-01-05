@@ -51,10 +51,8 @@ class ClientGui(QtGui.QMainWindow):
         sys.exit()
 
     def leave_room(self):
-
-        print('leaving')
-
         self.ui.join_button.setText('Join')
+        self.ui.join_button.clicked.disconnect()
         self.ui.join_button.clicked.connect(self.join_room)
         self.ui.message_entry_box.setEnabled(False)
         self.ui.send_button.setEnabled(False)
@@ -73,15 +71,13 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.room_drop_down.setEnabled(True)
 
     def join_room(self):
-
-        print('joining')
-
         self.nickname = self.ui.nickname_box.text()
         self.room = self.ui.room_drop_down.currentText()
         self.backend.join_room(self.room, self.nickname)
-
-        self.ui.join_button.setText('Leave')
+        self.ui.join_button.clicked.disconnect()
         self.ui.join_button.clicked.connect(self.leave_room)
+        self.ui.join_button.setText('Leave')
+
         self.ui.nickname_box.setEnabled(False)
         self.ui.room_drop_down.setEnabled(False)
         self.ui.message_display_box.insertHtml(
