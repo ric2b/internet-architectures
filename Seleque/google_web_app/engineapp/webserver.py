@@ -10,11 +10,13 @@ def get_room_messages(room_id):
     :return: list with the messages.
     :raises AttributeError: if given room id does not exist.
     """
-    room = Room.get_by_key_name([room_id])[0]
-    if room is None:
+    room_key = db.Key.from_path('Room', room_id)
+    messages = db.GqlQuery("SELECT * FROM Message WHERE ANCESTOR is :1 ORDER BY date_time DESC", room_key)
+
+    if messages.count(limit=1) == 0:
         raise AttributeError("room '%s' does not exist", (room_id,))
 
-    return Message.all().ancestor(room)
+    return messages
 
 
 def not_found_room(response, room_id):
@@ -70,9 +72,10 @@ class MessagesBlockHandler(webapp2.RequestHandler):
         start_index = int(start_index)
         end_index = int(end_index)
 
-        self.response.write("<h1>Messages from %d to %d:</h1>" % (start_index, end_index))
         try:
             messages = get_room_messages(room_id)
+
+            self.response.write("<h1>Messages from %d to %d:</h1>" % (start_index, end_index))
             for message in messages[start_index - 1:end_index]:
                 self.response.write("%s : %s<br/>" % (message.text, message.date_time))
                 # self.response.write("sender %s: %s<br/>" % (message.sender_id, message.text))
@@ -88,7 +91,7 @@ class MainHandler(webapp2.RequestHandler):
 app = webapp2.WSGIApplication([
     webapp2.Route('/<room_id>/count', handler=CountHandler, name='room_id'),
     webapp2.Route('/<room_id>/messages', handler=MessagesHandler, name='room_id'),
-    webapp2.Route(r'/<room_id>/messages/<:\d+>/<:\d+>', handler=MessagesBlockHandler, name='room_id'),
+    webapp2.Route('/<room_id>/messages/<:\d+>/<:\d+>', handler=MessagesBlockHandler),
     ('/', MainHandler),
     webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id')
 ], debug=True)
