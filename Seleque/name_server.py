@@ -104,6 +104,7 @@ class NameServer:
             print("SERVER: increasing room size, no more free servers."
                   " done because of room '{0}'".format(room))
             self.room_size += self.room_size_increment
+            raise LookupError
 
         try:
             self.rooms[room].append(server)
