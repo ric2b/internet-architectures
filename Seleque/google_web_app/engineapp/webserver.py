@@ -45,6 +45,7 @@ class Room(db.Model):
 class Message(db.Model):
     text = db.StringProperty(required=True)
     author = db.StringProperty(required=True)
+    nickname = db.StringProperty(required=True)
     date_time = db.DateTimeProperty(auto_now_add=True)
 
 
@@ -56,11 +57,22 @@ class AddMessage(webapp2.RequestHandler):
         room = Room.get_or_insert(room_id)
 
         # store the new message
-        new_message = Message(text=text, author=author, parent=room)
+        new_message = Message(text=text, author=author, nickname=author, parent=room)
         new_message.put()
 
         counters.increment(room_id)
         self.response.out.write('message added')
+
+    def post(self, room_id):
+        sender_id = str(self.request.get('sender_id'))
+        nickname = str(self.request.get('nickname'))
+        text = str(self.request.get('text'))
+
+        room = Room.get_or_insert(room_id)
+
+        new_message = Message(text=text, author=sender_id, nickname=nickname, parent=room)
+        new_message.put()
+        counters.increment(room_id)
 
 
 class CountHandler(webapp2.RequestHandler):

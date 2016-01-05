@@ -131,7 +131,7 @@ class ChatServer:
                 'nickname': "cool nickname",
                 'text': message.text}
 
-        post(webserver_url + "/addmessage", data=data)
+        post(webserver_url + "/{}/addmessage".format(room_id), data=data)
 
     def register_on_nameserver(self, self_uri: Pyro4.core.URI):
         """
