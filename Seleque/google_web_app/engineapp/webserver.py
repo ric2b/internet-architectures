@@ -113,8 +113,7 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):
-        self.response.write('Welcome to Seleque!')
-
+        self.response.write(template.render('index.html', {}))
 
 app = webapp2.WSGIApplication([
     webapp2.Route('/<room_id>/count', handler=CountHandler, name='room_id'),
