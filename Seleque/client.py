@@ -55,21 +55,21 @@ class Client:
             client_id, server_uri = self.name_server.join_room(room_id)
 
             # generate the client's uri from the client id in order to be unique
-            client_uri = self.daemon.register(self, str(client_id))
+            if not self.client_uri:
+                self.client_uri = self.daemon.register(self, str(client_id))
 
             # get the server where from the server uri
             server = Pyro4.Proxy(server_uri)  # type: ChatServer
             print("joined room '{0}' on server '{1}'".format(room_id, server_uri))
             try:
                 # register the client in the server
-                server.register(room_id, client_id, client_uri, nickname)
+                server.register(room_id, client_id, self.client_uri, nickname)
             except InvalidIdError:
                 # retry to register
                 continue
             else:
                 joined_successfully = True
                 self.server = server
-                self.client_uri = client_uri
                 self.id = client_id
                 self.room_id = room_id
 
@@ -81,7 +81,6 @@ class Client:
         self.id = None
         self.room_id = None
         self.server = None
-        self.client_uri = None
 
     def get_rooms(self):
         return self.name_server.list_rooms()

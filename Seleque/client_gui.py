@@ -29,7 +29,9 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.message_entry_box.setText('Not connected to any room')
         self.ui.send_button.setEnabled(False)
         self.ui.message_display_box.setText('')
+        self.ui.room_drop_down.clear()
         self.ui.room_drop_down.addItems(sorted(self.backend.get_rooms(), key=str.lower))
+        self.ui.room_drop_down.clearEditText()
 
         # Connect up the buttons.
         self.ui.join_button.clicked.connect(self.join_room)
@@ -49,17 +51,39 @@ class ClientGui(QtGui.QMainWindow):
         sys.exit()
 
     def leave_room(self):
+
+        print('leaving')
+
+        self.ui.join_button.setText('Join')
+        self.ui.join_button.clicked.connect(self.join_room)
+        self.ui.message_entry_box.setEnabled(False)
+        self.ui.send_button.setEnabled(False)
+        self.ui.message_display_box.setText('')
+        self.setWindowTitle('Seléque (not in a room)')
+
         self.backend.leave_room()
+        self.nickname = None
         self.room = None
 
+        self.ui.room_drop_down.clear()
+        self.ui.room_drop_down.addItems(sorted(self.backend.get_rooms(), key=str.lower))
+        self.ui.room_drop_down.clearEditText()
+        self.ui.join_button.setEnabled(True)
+        self.ui.nickname_box.setEnabled(True)
+        self.ui.room_drop_down.setEnabled(True)
+
     def join_room(self):
-        if self.room:
-            self.leave_room()
+
+        print('joining')
 
         self.nickname = self.ui.nickname_box.text()
         self.room = self.ui.room_drop_down.currentText()
         self.backend.join_room(self.room, self.nickname)
 
+        self.ui.join_button.setText('Leave')
+        self.ui.join_button.clicked.connect(self.leave_room)
+        self.ui.nickname_box.setEnabled(False)
+        self.ui.room_drop_down.setEnabled(False)
         self.ui.message_display_box.insertHtml(
                 'Joined room: {0}<br>start typing :)<br><br>'.format(self.room))
         self.ui.message_entry_box.setText('')
