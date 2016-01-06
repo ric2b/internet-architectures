@@ -4,7 +4,7 @@ import webapp2
 from google.appengine.ext import db
 import counters as counters
 from google.appengine.ext.webapp import template
-
+import urllib2
 
 def get_room_messages(room_id, start_date=None, end_date=None):
     """
@@ -114,6 +114,12 @@ class MessagesHandler(webapp2.RequestHandler):
             not_found_room(self.response, room_id)
 
 
+class ClientCountHandler(webapp2.RequestHandler):
+    def get(self, room_id):
+        response = urllib2.urlopen("http://127.0.0.1:8088/{}".format(room_id))
+        self.response.write(response.read())
+
+
 class MainHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write(template.render('index.html', {}))
@@ -122,5 +128,6 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/<room_id>/messagecount', handler=CountHandler, name='room_id'),
     webapp2.Route('/<room_id>/messages', handler=MessagesHandler, name='room_id'),
     ('/', MainHandler),
-    webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id')
+    webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id'),
+    webapp2.Route('/<room_id>/clientcount', handler=ClientCountHandler, name='room_id')
 ], debug=True)
