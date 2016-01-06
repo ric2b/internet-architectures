@@ -1,6 +1,9 @@
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
 import Pyro4
 import uuid
-
+import sys
 from client_id import ClientId
 from room_id import RoomId
 
@@ -35,11 +38,11 @@ class ServerInfo:
 
 
 class NameServer:
-
     def __init__(self, room_size: int):
-        self.rooms = {}  # type: dict[str: list[Pyro4.URI]]
+        self.rooms = {}  # type: dict[RoomId: list[Pyro4.URI]]
+        self.room_clients = {}  # type: dict[RoomId: int]
         self.room_size = room_size
-        self.room_size_increment = 0.5*room_size
+        self.room_size_increment = 0.5 * room_size
         # maps a client to its nickname
         self.clients = {}  # type: dict[uuid: str]
         self.servers = {}  # type: dict[Pyro4.URI: ServerInfo]
@@ -49,7 +52,7 @@ class NameServer:
 
     def register_server(self, server: Pyro4.URI):
         if server in self._server_order:
-                raise ValueError('Server already registered')
+            raise ValueError('Server already registered')
 
         self.servers[server] = ServerInfo(server)
         self._server_order.append(server)
@@ -97,6 +100,7 @@ class NameServer:
             self.rooms[room].append(server)
         except KeyError:  # room doesn't exist on any servers
             self.rooms[room] = [server]
+            self.room_clients[room] = 0
 
         print("ROOM: created room '{0}' on server '{1}'".format(room, server))
 
@@ -138,13 +142,15 @@ class NameServer:
                 self.room_size += self.room_size_increment
                 raise LookupError
 
+            self.room_clients[room_id] += 1
+
         else:  # room doesn't exist yet, create it
             server_uri = self.create_room(room_id)
 
         return client_id, server_uri
 
     def get_nickname(self, client_id: ClientId):
-            return self.clients[client_id]
+        return self.clients[client_id]
 
     def register_client(self, client_id: ClientId, server: Pyro4.URI, room_id: RoomId, nickname: str):
         """
@@ -181,6 +187,7 @@ class NameServer:
         del self.clients[client]
         self.servers[server].clients -= 1
         self.servers[server].rooms[room] -= 1
+        self.room_clients[room] -= 1
 
         if self.servers[server].clients == 0:  # room closed if the server no longer has users
             self.servers[server].rooms.pop(room)  # the room is no longer on the server
@@ -196,16 +203,53 @@ class NameServer:
                 print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
 
 
+# noinspection PyPep8Naming
+class RequestHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        # send code 200 response
+        self.send_response(200)
+        # send header first
+        self.send_header('Content-type', 'text')
+        self.end_headers()
+        # send client count
+        try:
+            room_id = self.path[1:]
+            self.wfile.write(str(name_server.room_clients[room_id]))
+        except KeyError:
+            self.send_error(404, 'room not found')
+
+# global name server
+name_server = NameServer(2)
+
 if __name__ == "__main__":
+
+    # if len(sys.argv) != 3:
+    #     print("usage: name_server <ip_address> <port>")
+    #     print("\tip_address: ip address to bound teh server to.")
+    #     print("\tport: port to bound teh server to.")
 
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
     daemon = Pyro4.Daemon()
-    uri = daemon.register(NameServer(2), 'name_server')
+    uri = daemon.register(name_server, 'name_server')
+    print(str(uri))
 
-    # store the uri of the nameserver in a file
+    # store the addresses of the nameserver in a file
+    # with open("nameserver_uri.txt", mode='w') as file:
+    #     file.writelines([str(uri), sys.argv[1] + ':' + sys.argv[2]])
     with open("nameserver_uri.txt", mode='w') as file:
         file.write(str(uri))
 
-    daemon.requestLoop()
+    threading.Thread(target=daemon.requestLoop).start()
+
+    server_address = ('127.0.0.1', 8088)
+    httpd = HTTPServer(server_address, RequestHandler)
+
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+    httpd.server_close()
+    daemon.shutdown()
