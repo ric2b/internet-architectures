@@ -105,9 +105,9 @@ class MessagesHandler(webapp2.RequestHandler):
             messages = get_room_messages(room_id, start_date, end_date)
             self.response.write("<h1>Messages from %s to %s:</h1>" % (start_date.date(), end_date.date()))
             self.response.write("""<table style="width:60%">""")
-            self.response.write("<tr><td>Message</td><td>Author</td><td>Received on</td></tr>")
+            self.response.write("<tr><td>Message</td><td>Author nickname</td><td>Author id</td><td>Received on</td></tr>")
             for message in messages:
-                self.response.write("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % (message.text, message.nickname, message.date_time))
+                self.response.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (message.text, message.nickname, message.author, message.date_time))
                 
             self.response.write("""</table>""")
         except AttributeError:
