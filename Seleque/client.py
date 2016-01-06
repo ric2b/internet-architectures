@@ -25,6 +25,7 @@ class Client:
         self.id = None  # type: ClientId
         self.room_id = None
         self.server = None
+        self.server_uri = None
         self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
 
         # messages queue
@@ -74,6 +75,7 @@ class Client:
             else:
                 joined_successfully = True
                 self.server = server
+                self.server_uri = server_uri
                 self.id = client_id
                 self.room_id = room_id
 
@@ -81,10 +83,15 @@ class Client:
             threading.Thread(target=self.daemon.requestLoop).start()
 
     def leave_room(self):
-        self.server.leave_room(self.room_id, self.id)
+        try:
+            self.server.leave_room(self.room_id, self.id)
+        except Pyro4.errors.CommunicationError:
+            self.name_server.remove_server(self.server_uri)
+        print("left room '{0}' on server '{1}'".format(self.room_id, self.server_uri))
         self.id = None
         self.room_id = None
         self.server = None
+        self.server_uri = None
 
     def get_rooms(self):
         return self.name_server.list_rooms()
@@ -98,8 +105,10 @@ class Client:
 
         :param message: message to be sent.
         """
-
-        self.server.send_message(self.room_id, self.id, message)
+        try:
+            self.server.send_message(self.room_id, self.id, message)
+        except Pyro4.errors.CommunicationError:
+            raise ConnectionError
 
     def notify_message(self, message: Message):
         with self.lock:

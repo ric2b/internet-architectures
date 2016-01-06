@@ -70,9 +70,10 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.nickname_box.setEnabled(True)
         self.ui.room_drop_down.setEnabled(True)
 
-    def join_room(self):
-        self.nickname = self.ui.nickname_box.text()
-        self.room = self.ui.room_drop_down.currentText()
+    def join_room(self, room=None, nickname=None):
+        self.nickname = nickname if nickname else self.ui.nickname_box.text()
+        self.room = room if room else self.ui.room_drop_down.currentText()
+
         self.backend.join_room(self.room, self.nickname)
         self.ui.join_button.clicked.disconnect()
         self.ui.join_button.clicked.connect(self.leave_room)
@@ -92,10 +93,19 @@ class ClientGui(QtGui.QMainWindow):
         message = self.ui.message_entry_box.text()
         if message:
             self.ui.message_entry_box.setText('')
-            self.backend.send_message(Message(self.backend.id, message))
+            try:
+                self.backend.send_message(Message(self.backend.id, message))
+            except ConnectionError:
+                room = self.room
+                nickname = self.nickname
+                self.leave_room()
+                self.join_room(room=room, nickname=nickname)
+                self.ui.message_display_box.insertHtml(
+                    '''<font color="red">RECOVERED FROM A FAULT.
+                        We're sorry, try again<br><br>'''.format(self.room))
 
     def receive_messages(self, message):
-        color = 'blue' if message.sender_id == self.backend.id else 'red'
+        color = 'blue' if message.sender_id == self.backend.id else 'green'
         sender_nickname = self.backend.get_nickname(message.sender_id)
         m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname,
                                                             message.text, color)
