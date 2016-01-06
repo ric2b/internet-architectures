@@ -4,8 +4,7 @@ import webapp2
 from google.appengine.ext import db
 import counters as counters
 from google.appengine.ext.webapp import template
-from requests import get
-
+import urllib2
 
 def get_room_messages(room_id, start_date=None, end_date=None):
     """
@@ -114,8 +113,8 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class ClientCountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        response = get("http://127.0.0.1:8088/{}".format(room_id))
-        self.response.write(response)
+        response = urllib2.urlopen("http://127.0.0.1:8088/{}".format(room_id))
+        self.response.write(response.read())
 
 
 class MainHandler(webapp2.RequestHandler):

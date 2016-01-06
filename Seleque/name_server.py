@@ -142,8 +142,6 @@ class NameServer:
                 self.room_size += self.room_size_increment
                 raise LookupError
 
-            self.room_clients[room_id] += 1
-
         else:  # room doesn't exist yet, create it
             server_uri = self.create_room(room_id)
 
@@ -174,6 +172,7 @@ class NameServer:
         # increase the count of clients in the given server and room pair
         self.servers[server].clients += 1
         self.servers[server].rooms[room_id] += 1
+        self.room_clients[room_id] += 1
 
         return client_id
 
@@ -214,7 +213,8 @@ class RequestHandler(BaseHTTPRequestHandler):
         # send client count
         try:
             room_id = self.path[1:]
-            self.wfile.write(str(name_server.room_clients[room_id]))
+            self.wfile.write(str(name_server.room_clients[room_id]).encode())
+            self.wfile.write(str(" clients in room '{}'".format(room_id)).encode())
         except KeyError:
             self.send_error(404, 'room not found')
 
