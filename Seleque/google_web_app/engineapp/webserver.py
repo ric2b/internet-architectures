@@ -104,9 +104,12 @@ class MessagesHandler(webapp2.RequestHandler):
         try:
             messages = get_room_messages(room_id, start_date, end_date)
             self.response.write("<h1>Messages from %s to %s:</h1>" % (start_date.date(), end_date.date()))
+            self.response.write("""<table style="width:60%">""")
+            self.response.write("<tr><td>Message</td><td>Author</td><td>Received on</td></tr>")
             for message in messages:
-                self.response.write("%s : %s<br/>" % (message.text, message.date_time))
-                # self.response.write("sender %s: %s<br/>" % (message.sender_id, message.text))
+                self.response.write("<tr><td>%s</td><td>%s</td><td>%s</td></tr>" % (message.text, message.nickname, message.date_time))
+                
+            self.response.write("""</table>""")
         except AttributeError:
             not_found_room(self.response, room_id)
 

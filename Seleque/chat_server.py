@@ -133,7 +133,7 @@ class ChatServer:
 
         # store message in the web server
         data = {'sender_id': message.sender_id,
-                'nickname': "cool nickname",
+                'nickname': self.name_server.get_nickname(message.sender_id),
                 'text': message.text}
 
         post(webserver_url + "/{}/addmessage".format(room_id), data=data)
