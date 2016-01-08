@@ -214,6 +214,9 @@ class ChatServer:
             print("ROOM: closed room '{0}' since it had no more clients".format(room_id))
         self.name_server.remove_client(client_id, self.uri, room_id)
 
+    def leave(self):
+        self.name_server.remove_server(self.uri)
+
 
 if __name__ == "__main__":
 
@@ -226,5 +229,12 @@ if __name__ == "__main__":
     daemon = Pyro4.Daemon()
     uri = daemon.register(server, 'chat_server')
     print(uri)
+
     server.register_on_nameserver(uri)
-    daemon.requestLoop()
+    print("registered on name server ", uri)
+
+    try:
+        daemon.requestLoop()
+    except KeyboardInterrupt:
+        pass
+    server.leave()
