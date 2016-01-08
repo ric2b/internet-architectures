@@ -1,3 +1,14 @@
+"""Name Server.
+
+Usage:
+  name_server.py [--url=httpserver] [--r=<room_capacity>]
+  name_server.py <ipaddress> <port> [--r=<room_capacity>]
+  name_server.py (-h | --help)
+
+Options:
+  -h --help         Show this screen.
+  --r=<room_capacity>   Specify the initial capacity of the rooms [default: 2]
+"""
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
@@ -5,6 +16,11 @@ import Pyro4
 import uuid
 from client_id import ClientId
 from room_id import RoomId
+from docopt import docopt
+
+
+# global name server
+global name_server
 
 
 class InvalidIdError(AttributeError):
@@ -229,33 +245,37 @@ class RequestHandler(BaseHTTPRequestHandler):
         except KeyError:
             self.send_error(404, 'room not found')
 
-# global name server
-name_server = NameServer(2)
 
 if __name__ == "__main__":
 
-    # if len(sys.argv) != 3:
-    #     print("usage: name_server <ip_address> <port>")
-    #     print("\tip_address: ip address to bound teh server to.")
-    #     print("\tport: port to bound teh server to.")
+    arguments = docopt(__doc__)
+
+    if arguments['--url']:
+        http_address = arguments['--url'].split(':')  # returns a list [ ipaddress, port ]
+        http_address = (http_address[0], int(http_address[1]))  # convert list to a tuple and make the port an int
+    elif arguments['<ipaddress>']:
+        http_address = (arguments['<ipaddress>'], int(arguments['<port>']))  # the port number must be an int
+    else:
+        http_address = ('127.0.0.1', 8088)
 
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
+    name_server = NameServer(int(arguments['--r']))  # argument --r defaults to 2 when none is specified
+
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
-    print(str(uri))
 
-    # store the addresses of the nameserver in a file
-    # with open("nameserver_uri.txt", mode='w') as file:
-    #     file.writelines([str(uri), sys.argv[1] + ':' + sys.argv[2]])
     with open("nameserver_uri.txt", mode='w') as file:
         file.write(str(uri))
 
     threading.Thread(target=daemon.requestLoop).start()
+    httpd = HTTPServer(http_address, RequestHandler)
 
-    server_address = ('127.0.0.1', 8088)
-    httpd = HTTPServer(server_address, RequestHandler)
+    print("Using:")
+    print("\tmy URI:", uri)
+    print("\thttp server URL: {}:{}".format(http_address[0], http_address[1]))
+    print("\tinitial room capacity:", arguments['--r'])
 
     try:
         httpd.serve_forever()

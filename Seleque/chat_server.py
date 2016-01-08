@@ -1,7 +1,16 @@
+"""Chat Server.
+
+Usage:
+  chat_server.py <webserver-url> [--uri=<nameserver-uri> | --file=<file>]
+  chat_server.py (-h | --help)
+
+Options:
+  -h --help     Show this screen.
+
+"""
 import Pyro4
 
 from collections import namedtuple
-
 from requests import post
 
 from chat_room import ChatRoom
@@ -9,22 +18,57 @@ from client_id import ClientId
 from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
+from docopt import docopt
 
-with open("nameserver_uri.txt") as file:
-    name_server_uri = file.readline()
 
-webserver_url = "http://127.0.0.1:8080"
+def main():
+    arguments = docopt(__doc__)
+
+    if arguments['--uri']:
+        name_server_uri = arguments['--uri']
+    else:
+        name_server_uri_file = arguments['--file'] if arguments['--file'] else "nameserver_uri.txt"
+        with open(name_server_uri_file) as file:
+            name_server_uri = file.readline()
+
+    webserver_url = arguments['<webserver-url>']
+
+    print("Using:")
+    print("\tname server URI:", name_server_uri)
+    print("\tweb server URL:", webserver_url)
+    print()
+
+    # set pickle as the serializer used by pyro
+    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
+    Pyro4.config.SERIALIZER = 'pickle'
+
+    server = ChatServer(webserver_url, name_server_uri)
+    # register the server in the pyro daemon
+    daemon = Pyro4.Daemon()
+    uri = daemon.register(server, 'chat_server')
+    print("My URI: ", uri)
+
+    server.register_on_nameserver(uri)
+    print("registered on the name server")
+
+    try:
+        daemon.requestLoop()
+    except KeyboardInterrupt:
+        pass
+    server.leave()
 
 Address = namedtuple('Address', ['ip_address', 'port'])
 
 
 class ChatServer:
-    def __init__(self):
+    def __init__(self, webserver_url, name_server_uri):
         """
         Initializes the messages buffer. Creates an empty dictionary with all the
         mapping the clients ids to their information. Registers the server in the
         pyro daemon.
         """
+        self.webserver_url = webserver_url
+        self.name_server_uri = name_server_uri
 
         self.rooms = {}  # type: dict[RoomId: ChatRoom]
 
@@ -136,7 +180,7 @@ class ChatServer:
                 'nickname': self.name_server.get_nickname(message.sender_id),
                 'text': message.text}
 
-        post(webserver_url + "/{}/addmessage".format(room_id), data=data)
+        post(self.webserver_url + "/{}/addmessage".format(room_id), data=data)
 
     def register_on_nameserver(self, self_uri: Pyro4.core.URI):
         """
@@ -214,17 +258,9 @@ class ChatServer:
             print("ROOM: closed room '{0}' since it had no more clients".format(room_id))
         self.name_server.remove_client(client_id, self.uri, room_id)
 
+    def leave(self):
+        self.name_server.remove_server(self.uri)
+
 
 if __name__ == "__main__":
-
-    # set pickle as the serializer used by pyro
-    Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
-    Pyro4.config.SERIALIZER = 'pickle'
-
-    server = ChatServer()
-    # register the server in the pyro daemon
-    daemon = Pyro4.Daemon()
-    uri = daemon.register(server, 'chat_server')
-    print(uri)
-    server.register_on_nameserver(uri)
-    daemon.requestLoop()
+    main()
