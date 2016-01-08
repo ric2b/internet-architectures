@@ -1,13 +1,13 @@
 """Name Server.
 
 Usage:
-  name_server.py [--url=httpserver]
-  name_server.py <ipaddress> <port>
+  name_server.py [--url=httpserver] [--r=<room_capacity>]
+  name_server.py <ipaddress> <port> [--r=<room_capacity>]
   name_server.py (-h | --help)
 
 Options:
-  -h --help     Show this screen.
-
+  -h --help         Show this screen.
+  --r=<room_capacity>   Specify the initial capacity of the rooms [default: 2]
 """
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -17,6 +17,10 @@ import uuid
 from client_id import ClientId
 from room_id import RoomId
 from docopt import docopt
+
+
+# global name server
+global name_server
 
 
 class InvalidIdError(AttributeError):
@@ -241,8 +245,6 @@ class RequestHandler(BaseHTTPRequestHandler):
         except KeyError:
             self.send_error(404, 'room not found')
 
-# global name server
-name_server = NameServer(2)
 
 if __name__ == "__main__":
 
@@ -259,6 +261,8 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
+    name_server = NameServer(int(arguments['--r']))  # argument --r defaults to 2 when none is specified
+
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
 
@@ -271,6 +275,7 @@ if __name__ == "__main__":
     print("Using:")
     print("\tmy URI:", uri)
     print("\thttp server URL: {}:{}".format(http_address[0], http_address[1]))
+    print("\tinitial room capacity:", arguments['--r'])
 
     try:
         httpd.serve_forever()
