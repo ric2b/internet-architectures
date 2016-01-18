@@ -262,7 +262,8 @@ class NameServer:
                             self.servers[server].unshare_room(room, server_uri)
                     else:
                         self.rooms.pop(room)
-                        print("ROOM: closed room '{0}', no longer on any server".format(room, server_uri))
+                        print("ROOM: closed room '{0}', no longer on any server"
+                              .format(room, server.server_uri))
 
                 self.servers.pop(server.server_uri)
                 print("SERVER: removed server '%s'" % server.server_uri)
