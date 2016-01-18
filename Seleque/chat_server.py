@@ -261,6 +261,8 @@ class ChatServer:
     def leave(self):
         self.name_server.remove_server(self.uri)
 
+    def refresh_connection(self):
+        print("name server refreshed the connection")
 
 if __name__ == "__main__":
     main()
