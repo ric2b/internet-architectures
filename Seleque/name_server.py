@@ -80,10 +80,21 @@ class NameServer:
 
             for room in self.servers[removed_server].rooms:  # for each room served by the server...
                 self.rooms[room].remove(removed_server)  # remove the server from the room's list
+
+                remove_room = False  # flag to indicate if the room is to be removed
                 if self.rooms[room]:
+                    # discount the clients connected to the removed server
+                    self.room_clients[room] -= self.servers[removed_server].clients
+
                     for server in self.rooms[room]:
                         self.servers[server].unshare_room(room, removed_server)
+
+                    if self.room_clients[room] == 0:
+                        remove_room = True
                 else:
+                    remove_room = True
+
+                if remove_room:
                     self.rooms.pop(room)
                     print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
 
