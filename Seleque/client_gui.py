@@ -10,6 +10,7 @@ from message import Message
 
 class ClientGui(QtGui.QMainWindow):
     message_signal = QtCore.pyqtSignal(Message)
+    server_failure_signal = QtCore.pyqtSignal()
 
     def __init__(self, backend):
         super().__init__()
@@ -20,8 +21,9 @@ class ClientGui(QtGui.QMainWindow):
 
         # Set up the backend communication
         self.backend = backend
-        self.receive_thread = ReceiveThread(self.message_signal, self.backend)
         self.message_signal.connect(self.receive_messages)
+        self.server_failure_signal.connect(self.recover_connection)
+        self.receive_thread = ReceiveThread(self.message_signal, self.server_failure_signal, self.backend)
 
         # Make some local modifications.
         self.setWindowTitle('Seléque (not in a room)')
@@ -70,6 +72,15 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.nickname_box.setEnabled(True)
         self.ui.room_drop_down.setEnabled(True)
 
+    def recover_connection(self):
+        room = self.room
+        nickname = self.nickname
+        self.leave_room()
+        self.join_room(room=room, nickname=nickname)
+        self.ui.message_display_box.insertHtml(
+            '''<font color="red">RECOVERED FROM A FAULT.
+                We're sorry, try again<br><br>'''.format(self.room))
+
     def join_room(self, room=None, nickname=None):
         self.nickname = nickname if nickname else self.ui.nickname_box.text()
         self.room = room if room else self.ui.room_drop_down.currentText()
@@ -87,6 +98,7 @@ class ClientGui(QtGui.QMainWindow):
         self.ui.message_entry_box.setEnabled(True)
         self.ui.send_button.setEnabled(True)
         self.setWindowTitle('Seléque - ' + self.room)
+        #self.receive_thread.wait()
         self.receive_thread.start()
 
     def send_message(self):
@@ -96,27 +108,22 @@ class ClientGui(QtGui.QMainWindow):
             try:
                 self.backend.send_message(Message(self.backend.id, message))
             except ConnectionError:
-                room = self.room
-                nickname = self.nickname
-                self.leave_room()
-                self.join_room(room=room, nickname=nickname)
-                self.ui.message_display_box.insertHtml(
-                    '''<font color="red">RECOVERED FROM A FAULT.
-                        We're sorry, try again<br><br>'''.format(self.room))
+                self.recover_connection()
 
     def receive_messages(self, message):
         color = 'blue' if message.sender_id == self.backend.id else 'green'
+
         sender_nickname = self.backend.get_nickname(message.sender_id)
-        m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname,
-                                                            message.text, color)
+        m = '<font color="{2}">{0}:</font> {1} <br>'.format(sender_nickname, message.text, color)
         self.ui.message_display_box.insertHtml(m)
         self.ui.message_display_box.ensureCursorVisible()
 
 
 class ReceiveThread(QtCore.QThread):
-    def __init__(self, signal, backend):
+    def __init__(self, message_signal, server_failure_signal, backend):
         QtCore.QThread.__init__(self)
-        self.new_message = signal
+        self.new_message = message_signal
+        self.server_failure = server_failure_signal
         self.backend = backend
 
     def run(self):
@@ -126,6 +133,10 @@ class ReceiveThread(QtCore.QThread):
                 if message:
                     self.new_message.emit(message)
             except StoppedException:
+                break
+            except ConnectionError:
+                print('totally caught it!')
+                self.server_failure.emit()
                 break
 
 
@@ -143,7 +154,3 @@ if __name__ == "__main__":
     client_gui.hide()
     client_gui.show()
     sys.exit(app.exec_())
-
-# todo: backend receive_message should only return when new messages show up
-# todo: backend should allow fetching of rooms
-

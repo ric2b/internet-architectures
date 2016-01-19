@@ -1,7 +1,7 @@
 """Chat Server.
 
 Usage:
-  chat_server.py <webserver-url> [--uri=<nameserver-uri> | --file=<file>]
+  chat_server.py [ --webserver=<webserver-url> | --uri=<nameserver-uri> | --file=<file>]
   chat_server.py (-h | --help)
 
 Options:
@@ -24,14 +24,17 @@ from docopt import docopt
 def main():
     arguments = docopt(__doc__)
 
+    if arguments['--webserver']:
+        webserver_url = arguments['--webserver']
+    else:
+        webserver_url = 'http://seleque1.appspot.com'
+
     if arguments['--uri']:
         name_server_uri = arguments['--uri']
     else:
         name_server_uri_file = arguments['--file'] if arguments['--file'] else "nameserver_uri.txt"
         with open(name_server_uri_file) as file:
             name_server_uri = file.readline()
-
-    webserver_url = arguments['<webserver-url>']
 
     print("Using:")
     print("\tname server URI:", name_server_uri)
@@ -260,6 +263,10 @@ class ChatServer:
 
     def leave(self):
         self.name_server.remove_server(self.uri)
+
+    @staticmethod
+    def ping():
+        return True
 
 
 if __name__ == "__main__":

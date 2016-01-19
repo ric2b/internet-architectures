@@ -8,6 +8,7 @@ from client_id import ClientId
 from message import Message
 from name_server import NameServer, InvalidIdError
 from room_id import RoomId
+from timed_event import TimedEvent
 
 
 class StoppedException(Exception):
@@ -25,8 +26,10 @@ class Client:
         self.id = None  # type: ClientId
         self.room_id = None
         self.server = None
+        self.server_down = False
         self.server_uri = None
         self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
+        self.watchdog = TimedEvent(timeout=15, loop=True, user_handler=self.ping_server)
 
         # messages queue
         self.message_queue = deque()
@@ -75,12 +78,24 @@ class Client:
             else:
                 joined_successfully = True
                 self.server = server
+                self.server_down = False
                 self.server_uri = server_uri
                 self.id = client_id
                 self.room_id = room_id
 
             # initialize the pyro service for the client
             threading.Thread(target=self.daemon.requestLoop).start()
+            self.watchdog.start()
+
+    def ping_server(self):
+        if self.server is None:
+            raise RuntimeWarning('ping_server was called while not connected to a server')
+        else:
+            try:
+                self.server.ping()
+            except Pyro4.errors.CommunicationError:
+                self.server_down = True
+                self.semaphore.release()
 
     def leave_room(self):
         try:
@@ -91,7 +106,9 @@ class Client:
         self.id = None
         self.room_id = None
         self.server = None
+        self.server_down = False
         self.server_uri = None
+        self.watchdog.stop()
 
     def get_rooms(self):
         return self.name_server.list_rooms()
@@ -108,6 +125,7 @@ class Client:
         try:
             self.server.send_message(self.room_id, self.id, message)
         except Pyro4.errors.CommunicationError:
+            self.watchdog.stop()
             raise ConnectionError
 
     def notify_message(self, message: Message):
@@ -115,6 +133,7 @@ class Client:
             self.message_queue.append(message)
         # indicate that there is a new message
         self.semaphore.release()
+        self.watchdog.reset()
 
     def receive_message(self):
         """
@@ -126,6 +145,9 @@ class Client:
         """
         # block until there is a new message
         self.semaphore.acquire()
+
+        if self.server_down:
+            raise ConnectionError
 
         if self.to_stop:
             raise StoppedException()

@@ -88,6 +88,7 @@ class NameServer:
                     print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
 
             self.servers.pop(removed_server)
+            print("SERVER: removed server '{0}' due to connection problems.".format(removed_server))
 
     def list_servers(self):
         return list(self.servers.keys())
