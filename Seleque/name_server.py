@@ -65,6 +65,8 @@ class NameServer:
         self._server_order = []  # type: [Pyro4.URI]
         self._next_server = 0
 
+        self.lock = threading.Lock()
+
     def register_server(self, server: Pyro4.URI):
         if server in self._server_order:
             raise ValueError('Server already registered')
@@ -75,20 +77,21 @@ class NameServer:
         print("SERVER: server '{}' has registered".format(server))
 
     def remove_server(self, removed_server: Pyro4.URI):
-        if removed_server in self.servers:
-            self._server_order.remove(removed_server)
+        with self.lock:
+            if removed_server in self.servers:
+                self._server_order.remove(removed_server)
 
-            for room in self.servers[removed_server].rooms:  # for each room served by the server...
-                self.rooms[room].remove(removed_server)  # remove the server from the room's list
-                if self.rooms[room]:
-                    for server in self.rooms[room]:
-                        self.servers[server].unshare_room(room, removed_server)
-                else:
-                    self.rooms.pop(room)
-                    print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
+                for room in self.servers[removed_server].rooms:  # for each room served by the server...
+                    self.rooms[room].remove(removed_server)  # remove the server from the room's list
+                    if self.rooms[room]:
+                        for server in self.rooms[room]:
+                            self.servers[server].unshare_room(room, removed_server)
+                    else:
+                        self.rooms.pop(room)
+                        print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
 
-            self.servers.pop(removed_server)
-            print("SERVER: removed server '{0}' due to connection problems.".format(removed_server))
+                self.servers.pop(removed_server)
+                print("SERVER: removed server '{0}' due to connection problems.".format(removed_server))
 
     def list_servers(self):
         return list(self.servers.keys())

@@ -135,7 +135,7 @@ class ReceiveThread(QtCore.QThread):
             except StoppedException:
                 break
             except ConnectionError:
-                print('totally caught it!')
+                print('server is down, will try to reconnect')
                 self.server_failure.emit()
                 break
 
