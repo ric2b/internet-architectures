@@ -19,7 +19,10 @@ class RegisterNewRegisterServer(webapp2.RequestHandler):
 
 
 class RegisterRoom(webapp2.RequestHandler):
-    def post(self, room_id, uri):
+    def post(self):
+        room_id = self.request.get('room_id')
+        uri = self.request.get('uri')
+
         committed = False
         while not committed:
             try:
@@ -52,7 +55,7 @@ class AllServers(webapp2.RequestHandler):
 class JoinRoom(webapp2.RequestHandler):
     def post(self):
 
-        room_id = self.request.get('room')
+        room_id = self.request.get('room_id')
         entity = RoomToServer.get_by_key_name(room_id)
         if entity:
             self.response.out.write(entity.uri)
@@ -62,7 +65,8 @@ class JoinRoom(webapp2.RequestHandler):
 
 
 class RemoveRoom(webapp2.RequestHandler):
-    def post(self, room_id):
+    def post(self):
+        room_id = self.request.get('room_id')
         entity = RoomToServer.get_by_key_name(room_id)
         if entity:
             db.delete(entity)
