@@ -171,7 +171,7 @@ if __name__ == "__main__":
 
     client = Client(name_server_id)
     # noinspection PyProtectedMember
-    client.join_room(RoomId("room name"), "david")
+    client.join_room(RoomId("roomname"), "david")
 
     thread1 = threading.Thread(target=receive, args=[client])
     thread2 = threading.Thread(target=send, args=[client])

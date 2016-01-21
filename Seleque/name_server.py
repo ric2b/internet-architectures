@@ -84,7 +84,7 @@ class NameServer:
                 remove_room = False  # flag to indicate if the room is to be removed
                 if self.rooms[room]:
                     # discount the clients connected to the removed server
-                    self.room_clients[room] -= self.servers[removed_server].clients
+                    self.room_clients[room] -= self.servers[removed_server].rooms[room]
 
                     for server in self.rooms[room]:
                         self.servers[server].unshare_room(room, removed_server)
@@ -250,7 +250,7 @@ class RequestHandler(BaseHTTPRequestHandler):
         self.end_headers()
         # send client count
         try:
-            room_id = self.path[1:]
+            room_id = RoomId(self.path[1:])
             self.wfile.write(str(name_server.room_clients[room_id]).encode())
             self.wfile.write(str(" clients in room '{}'".format(room_id)).encode())
         except KeyError:
