@@ -17,6 +17,7 @@ import uuid
 from client_id import ClientId
 from room_id import RoomId
 from docopt import docopt
+from requests import get
 
 
 # global name server
@@ -52,8 +53,8 @@ class ServerInfo:
         # todo: a way for the name server to take down servers, if issues are detected
 
 
-class NameServer:
-    def __init__(self, room_size: int):
+class RegisterServer:
+    def __init__(self, room_size: int, lookup_server_url):
         self.rooms = {}  # type: dict[RoomId: list[Pyro4.URI]]
         self.room_clients = {}  # type: dict[RoomId: int]
         self.room_size = room_size
@@ -66,6 +67,9 @@ class NameServer:
         self._next_server = 0
 
         self.lock = threading.Lock()
+
+        self.uri = None
+        self.lookup_server_url = lookup_server_url
 
     def register_server(self, server: Pyro4.URI):
         if server in self._server_order:
@@ -88,6 +92,7 @@ class NameServer:
                             self.servers[server].unshare_room(room, removed_server)
                     else:
                         self.rooms.pop(room)
+                        self.remove_room_from_ls(room)
                         print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
 
                 self.servers.pop(removed_server)
@@ -108,6 +113,11 @@ class NameServer:
         :param room: str
         :return server: uri
         """
+        # try to register the room in the lookup server db.
+        # fails if it's already created in another register server
+        if not self.register_room_in_ls(room):
+            raise ConnectionAbortedError
+
         try:
             # Round robin distribution of rooms
             server = self._server_order[0]
@@ -225,12 +235,23 @@ class NameServer:
 
             if len(self.rooms[room]) <= 0:
                 del self.rooms[room]  # if the room has no more servers, close
+                self.remove_room_from_ls(room)
                 print("ROOM: closed room '{0}', no longer on any server".format(room, server))
             else:
                 self.servers[server].close_room(room)
                 for shared_server in self.rooms[room]:
                     self.servers[shared_server].unshare_room(room, server)
                 print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
+
+    def remove_room_from_ls(self, room):
+        get('{0}/{1}/remrs'.format(self.lookup_server_url, room))
+
+    def register_room_in_ls(self, room):
+        response = get('{0}/{1}/addrs/{2}'.format(self.lookup_server_url, room, self.uri))
+        if response.text == 'OK':
+            return True
+        else:
+            return False
 
 
 # noinspection PyPep8Naming
@@ -265,10 +286,11 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = NameServer(int(arguments['--r']))  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
+    name_server.uri = uri
 
     with open("nameserver_uri.txt", mode='w') as file:
         file.write(str(uri))
