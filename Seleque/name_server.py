@@ -219,7 +219,7 @@ class NameServer:
         self.servers[server].rooms[room] -= 1
         self.room_clients[room] -= 1
 
-        if self.servers[server].clients == 0:  # room closed if the server no longer has users
+        if self.servers[server].rooms[room] <= 0:  # the server no longer has users for this room
             self.servers[server].rooms.pop(room)  # the room is no longer on the server
             self.rooms[room].remove(server)  # the room no longer uses this server
 
