@@ -28,6 +28,10 @@ class InvalidIdError(AttributeError):
     pass
 
 
+class RoomRegistrationFailed(Exception):
+    pass
+
+
 class ServerInfo:
     def __init__(self, server_uri):
         self.clients = 0
@@ -113,10 +117,12 @@ class RegisterServer:
         :param room: str
         :return server: uri
         """
-        # try to register the room in the lookup server db.
-        # fails if it's already created in another register server
-        if not self.register_room_in_ls(room):
-            raise ConnectionAbortedError
+        # if it's a new room it should be registered on the lookup server
+        if room not in self.rooms.keys():
+            # try to register the room in the lookup server db.
+            # fails if it's already created in another register server
+            if not self.register_room_in_ls(room):
+                raise RoomRegistrationFailed
 
         try:
             # Round robin distribution of rooms
@@ -246,16 +252,17 @@ class RegisterServer:
     def register_self_in_ls(self):
         post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
 
-    def remove_room_from_ls(self, room):
-        post('{0}/remove_room'.format(self.lookup_server_url), data={'room_id': room})
-
     def register_room_in_ls(self, room):
         response = post('{0}/register_room'.format(self.lookup_server_url),
                         data={'room_id': room, 'uri': self.uri})
         if response.text == 'OK':
             return True
         else:
+            print(response.text)
             return False
+
+    def remove_room_from_ls(self, room):
+        post('{0}/remove_room'.format(self.lookup_server_url), data={'room_id': room})
 
 
 # noinspection PyPep8Naming

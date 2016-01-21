@@ -6,6 +6,7 @@ from chat_server import Address
 from client_design import Ui_MainWindow  # pyuic4 -x file.ui -o output.py
 from client import Client, StoppedException
 from message import Message
+from name_server import RoomRegistrationFailed
 
 
 class ClientGui(QtGui.QMainWindow):

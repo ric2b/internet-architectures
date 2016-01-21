@@ -6,10 +6,11 @@ import Pyro4
 from chat_server import ChatServer
 from client_id import ClientId
 from message import Message
-from name_server import RegisterServer, InvalidIdError
+from name_server import RegisterServer, InvalidIdError, RoomRegistrationFailed
 from room_id import RoomId
 from timed_event import TimedEvent
 from requests import get, post
+from random import randint
 
 
 class StoppedException(Exception):
@@ -64,8 +65,8 @@ class Client:
             try:
                 self._join_room_internal(room_id, nickname)
                 done = True
-            except ConnectionAbortedError:  # the register server can't create the room :(
-                pass
+            except RoomRegistrationFailed:  # the register server can't create the room :(
+                print("server {} couldn't create the room".format(self.register_server_uri))
 
     def _join_room_internal(self, room_id: RoomId, nickname: str):
         """
@@ -157,7 +158,7 @@ class Client:
             self.message_queue.append(message)
         # indicate that there is a new message
         self.semaphore.release()
-        self.watchdog.reset()
+        self.watchdog.reset(10+randint(0, 10))
 
     def receive_message(self):
         """

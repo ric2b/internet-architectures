@@ -12,8 +12,10 @@ class TimedEvent:
     def start(self):
         self.timer.start()
 
-    def reset(self):
+    def reset(self, timeout=None):
         self.timer.cancel()
+        if timeout:
+            self.timeout = timeout
         self.timer = threading.Timer(self.timeout, self.default_handler)
         self.timer.start()
 
