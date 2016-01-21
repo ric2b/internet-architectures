@@ -14,6 +14,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import Pyro4
 import uuid
+import time
 from client_id import ClientId
 from room_id import RoomId
 from docopt import docopt
@@ -32,6 +33,7 @@ class ServerInfo:
         self.clients = 0
         self.rooms = {}  # type: dict[RoomId: int]
         self._server = Pyro4.Proxy(server_uri)
+        self.server_uri = server_uri
 
     def create_room(self, room_id: RoomId):
         self._server.create_room(room_id)
@@ -46,6 +48,9 @@ class ServerInfo:
 
     def unshare_room(self, room_id: RoomId, *servers: Pyro4.URI):
         self._server.unshare_room(room_id, *servers)
+
+    def refresh_connection(self):
+        self._server.refresh_connection()
 
     def take_down(self):
         raise NotImplementedError
@@ -65,6 +70,7 @@ class NameServer:
         self._server_order = []  # type: [Pyro4.URI]
         self._next_server = 0
 
+        self.toStop = False  # flag to indicate the name server to stop
         self.lock = threading.Lock()
 
     def register_server(self, server: Pyro4.URI):
@@ -243,6 +249,39 @@ class NameServer:
                     self.servers[shared_server].unshare_room(room, server)
                 print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
 
+    def stop(self):
+        self.toStop = True
+
+    def refresh_servers(self):
+        while not self.toStop:
+            # refresh the server's connections every 5 seconds
+            time.sleep(5)
+
+            servers_to_remove = []
+            for server in self.servers.values():
+                try:
+                    server.refresh_connection()
+                except Pyro4.errors.CommunicationError:
+                    servers_to_remove.append(server)
+
+            for server in servers_to_remove:
+                self._server_order.remove(server.server_uri)
+
+                for room in self.servers[server.server_uri].rooms:  # for each room served by the server...
+                    self.rooms[room].remove(server.server_uri)  # remove the server from the room's list
+                    if self.rooms[room]:
+                        for server_uri in self.rooms[room]:
+                            self.servers[server].unshare_room(room, server_uri)
+                    else:
+                        self.rooms.pop(room)
+                        print("ROOM: closed room '{0}', no longer on any server"
+                              .format(room, server.server_uri))
+
+                self.servers.pop(server.server_uri)
+                print("SERVER: removed server '%s'" % server.server_uri)
+
+            print("SERVER: refreshed the servers")
+
 
 # noinspection PyPep8Naming
 class RequestHandler(BaseHTTPRequestHandler):
@@ -285,6 +324,7 @@ if __name__ == "__main__":
         file.write(str(uri))
 
     threading.Thread(target=daemon.requestLoop).start()
+    threading.Thread(target=name_server.refresh_servers).start()
     httpd = HTTPServer(http_address, RequestHandler)
 
     print("Using:")
@@ -299,3 +339,4 @@ if __name__ == "__main__":
 
     httpd.server_close()
     daemon.shutdown()
+    name_server.stop()

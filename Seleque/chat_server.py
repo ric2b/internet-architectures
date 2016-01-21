@@ -268,6 +268,9 @@ class ChatServer:
     def ping():
         return True
 
+    @staticmethod
+    def refresh_connection(self):
+        print("name server refreshed the connection")
 
 if __name__ == "__main__":
     main()
