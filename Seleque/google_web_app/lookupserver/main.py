@@ -82,7 +82,10 @@ def get_random_register_server():
 
 class ActiveRooms(webapp2.RequestHandler):
     def get(self):
-        pass
+        rooms = RoomToServer.all(keys_only=True)
+        room_ids = [room.name() for room in rooms]
+        formated = '\n'.join(room_ids)
+        self.response.write(formated)
 
 
 app = webapp2.WSGIApplication([
