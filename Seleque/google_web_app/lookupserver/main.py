@@ -4,23 +4,14 @@ import logging
 
 
 class RegisterServer(db.Model):
-    # room = db.StringProperty(required=True)
     uri = db.StringProperty(required=True)
 
 
-class AddRegisterServer(webapp2.RequestHandler):
-    def get(self, room_id, uri):
-        if not RegisterServer.get_by_key_name(room_id):
-            # store the new uri
-            new_rs = RegisterServer(key_name=room_id, uri=uri)
-            new_rs.put()
-
-            self.response.out.write('rs added')
-        else:
-            self.response.out.write('failed: already exists')
+class Room(db.Model):
+    room = db.StringProperty(required=True)
 
 
-class SafeAddRegisterServer(webapp2.RequestHandler):
+class RegisterRoom(webapp2.RequestHandler):
     def get(self, room_id, uri):
         commited = False
         while not commited:
@@ -44,7 +35,7 @@ class SafeAddRegisterServer(webapp2.RequestHandler):
             return 'EXISTS'
 
 
-class SeeRegisterServer(webapp2.RequestHandler):
+class JoinRoom(webapp2.RequestHandler):
     def get(self, room_id):
         entity = RegisterServer.get_by_key_name(room_id)
         if entity:
@@ -53,7 +44,7 @@ class SeeRegisterServer(webapp2.RequestHandler):
             self.response.out.write('404')
 
 
-class RemRegisterServer(webapp2.RequestHandler):
+class RemoveRoom(webapp2.RequestHandler):
     def get(self, room_id):
         entity = RegisterServer.get_by_key_name(room_id)
         if entity:
@@ -61,10 +52,15 @@ class RemRegisterServer(webapp2.RequestHandler):
 
         self.response.out.write('rs removed')
 
+class ActiveRooms(webapp2.RequestHandler):
+    def get(self):
+        pass
+
 
 app = webapp2.WSGIApplication([
-    # webapp2.Route('/<room_id>/addrs/<uri>', handler=AddRegisterServer, name='room_id'),
-    webapp2.Route('/<room_id>/addrs/<uri>', handler=SafeAddRegisterServer, name='room_id'),
-    webapp2.Route('/<room_id>/seers', handler=SeeRegisterServer, name='room_id'),
-    webapp2.Route('/<room_id>/remrs', handler=RemRegisterServer, name='room_id')
+    webapp2.Route('/register_rs/', handler=RegisterServer),
+    webapp2.Route('/register_room/', handler=RegisterRoom),
+    webapp2.Route('/join_room/', handler=JoinRoom),
+    webapp2.Route('/remove_room/', handler=RemoveRoom),
+    webapp2.Route('/active_rooms/', handler=ActiveRooms)
 ], debug=True)
