@@ -1,3 +1,5 @@
+import random
+
 import webapp2
 from google.appengine.ext import db
 import logging
@@ -43,7 +45,8 @@ class RegisterRoom(webapp2.RequestHandler):
 class AllServers(webapp2.RequestHandler):
     def get(self):
         all_servers = RegisterServer.all()
-        self.response.out.write(all_servers.count())
+        for server in all_servers:
+            self.response.out.write(server.key().name() + '\n')
 
 
 class JoinRoom(webapp2.RequestHandler):
@@ -54,7 +57,8 @@ class JoinRoom(webapp2.RequestHandler):
         if entity:
             self.response.out.write(entity.uri)
         else:
-            self.response.out.write('404')
+            server = get_random_register_server()
+            self.response.out.write(server.key().name())
 
 
 class RemoveRoom(webapp2.RequestHandler):
@@ -64,6 +68,13 @@ class RemoveRoom(webapp2.RequestHandler):
             db.delete(entity)
 
         self.response.out.write('rs removed')
+
+
+def get_random_register_server():
+    all_servers = RegisterServer.all()
+    server_index = random.randrange(0, all_servers.count())
+    return all_servers[server_index]
+
 
 class ActiveRooms(webapp2.RequestHandler):
     def get(self):
