@@ -53,11 +53,14 @@ class Client:
         done = False
         while not done:
             # request the register server uri from the lookup server
-            response = post('{0}/join_room'.format(self.lookup_server_url), room_id=room_id)
+            response = post('{0}/join_room'.format(self.lookup_server_url), data={'room_id': room_id})
             self.register_server_uri = response.text
 
             # connect to the register server and join the room
-            self.register_server = Pyro4.Proxy(self.register_server_uri)  # type: RegisterServer
+            try:
+                self.register_server = Pyro4.Proxy(self.register_server_uri)  # type: RegisterServer
+            except Pyro4.errors.PyroError:
+                print('failed connecting to {}, reporting to LS'.format(self.register_server_uri))
             try:
                 self._join_room_internal(room_id, nickname)
                 done = True

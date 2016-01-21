@@ -244,13 +244,14 @@ class RegisterServer:
                 print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
 
     def register_self_in_ls(self):
-        post('{0}/register_rs'.format(self.lookup_server_url), uri=self.uri)
+        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
 
     def remove_room_from_ls(self, room):
-        post('{0}/remove_room'.format(self.lookup_server_url), room_id=room)
+        post('{0}/remove_room'.format(self.lookup_server_url), data={'room_id': room})
 
     def register_room_in_ls(self, room):
-        response = post('{0}/register_room'.format(self.lookup_server_url), room_id=room, uri=self.uri)
+        response = post('{0}/register_room'.format(self.lookup_server_url),
+                        data={'room_id': room, 'uri': self.uri})
         if response.text == 'OK':
             return True
         else:
@@ -289,7 +290,7 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = RegisterServer(int(arguments['--r']), 'selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'http://selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
