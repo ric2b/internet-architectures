@@ -9,7 +9,7 @@ from message import Message
 from name_server import RegisterServer, InvalidIdError
 from room_id import RoomId
 from timed_event import TimedEvent
-from requests import get
+from requests import get, post
 
 
 class StoppedException(Exception):
@@ -53,7 +53,7 @@ class Client:
         done = False
         while not done:
             # request the register server uri from the lookup server
-            response = get('{0}/seers/{1}'.format(self.lookup_server_url, room_id))
+            response = post('{0}/join_room'.format(self.lookup_server_url), room_id=room_id)
             self.register_server_uri = response.text
 
             # connect to the register server and join the room
@@ -126,10 +126,13 @@ class Client:
         self.server = None
         self.server_down = False
         self.server_uri = None
+        self.register_server_uri = None
+        self.register_server = None
         self.watchdog.stop()
 
     def get_rooms(self):
-        return self.register_server.list_rooms()
+        response = get('{0}/active_rooms'.format(self.lookup_server_url))
+        return response.text.splitlines()
 
     def get_nickname(self, client_id: ClientId):
         return self.register_server.get_nickname(client_id)

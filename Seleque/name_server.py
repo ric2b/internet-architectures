@@ -17,7 +17,7 @@ import uuid
 from client_id import ClientId
 from room_id import RoomId
 from docopt import docopt
-from requests import get
+from requests import post
 
 
 # global name server
@@ -243,11 +243,14 @@ class RegisterServer:
                     self.servers[shared_server].unshare_room(room, server)
                 print("ROOM: room '{0}' closed on server '{1}'".format(room, server))
 
+    def register_self_in_ls(self):
+        post('{0}/register_rs'.format(self.lookup_server_url), uri=self.uri)
+
     def remove_room_from_ls(self, room):
-        get('{0}/{1}/remrs'.format(self.lookup_server_url, room))
+        post('{0}/remove_room'.format(self.lookup_server_url), room_id=room)
 
     def register_room_in_ls(self, room):
-        response = get('{0}/{1}/addrs/{2}'.format(self.lookup_server_url, room, self.uri))
+        response = post('{0}/register_room'.format(self.lookup_server_url), room_id=room, uri=self.uri)
         if response.text == 'OK':
             return True
         else:
@@ -291,6 +294,7 @@ if __name__ == "__main__":
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
     name_server.uri = uri
+    name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:
         file.write(str(uri))
