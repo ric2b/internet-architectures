@@ -6,6 +6,7 @@ from chat_server import Address
 from client_design import Ui_MainWindow  # pyuic4 -x file.ui -o output.py
 from client import Client, StoppedException
 from message import Message
+from name_server import RoomRegistrationFailed
 
 
 class ClientGui(QtGui.QMainWindow):
@@ -47,7 +48,8 @@ class ClientGui(QtGui.QMainWindow):
         self.nickname = None
 
     def closeEvent(self, event):
-        self.leave_room()
+        if self.room:
+            self.leave_room()
         self.backend.stop()
         super().closeEvent(event)
         sys.exit()
@@ -150,7 +152,7 @@ if __name__ == "__main__":
         name_server_uri = file.readline()
 
     app = QtGui.QApplication(sys.argv)
-    client_gui = ClientGui(Client(name_server_uri))
+    client_gui = ClientGui(Client('http://selequelookup.appspot.com'))
     client_gui.hide()
     client_gui.show()
     sys.exit(app.exec_())

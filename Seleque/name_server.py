@@ -18,6 +18,7 @@ import time
 from client_id import ClientId
 from room_id import RoomId
 from docopt import docopt
+from requests import post
 
 
 # global name server
@@ -25,6 +26,10 @@ global name_server
 
 
 class InvalidIdError(AttributeError):
+    pass
+
+
+class RoomRegistrationFailed(Exception):
     pass
 
 
@@ -57,8 +62,8 @@ class ServerInfo:
         # todo: a way for the name server to take down servers, if issues are detected
 
 
-class NameServer:
-    def __init__(self, room_size: int):
+class RegisterServer:
+    def __init__(self, room_size: int, lookup_server_url):
         self.rooms = {}  # type: dict[RoomId: list[Pyro4.URI]]
         self.room_clients = {}  # type: dict[RoomId: int]
         self.room_size = room_size
@@ -72,6 +77,9 @@ class NameServer:
 
         self.toStop = False  # flag to indicate the name server to stop
         self.lock = threading.Lock()
+
+        self.uri = None
+        self.lookup_server_url = lookup_server_url
 
     def register_server(self, server: Pyro4.URI):
         if server in self._server_order:
@@ -105,6 +113,7 @@ class NameServer:
 
                     if remove_room:
                         self.rooms.pop(room)
+                        self.remove_room_from_ls(room)
                         print("ROOM: closed room '{0}', no longer on any server".format(room, removed_server))
 
                 self.servers.pop(removed_server)
@@ -125,6 +134,13 @@ class NameServer:
         :param room: str
         :return server: uri
         """
+        # if it's a new room it should be registered on the lookup server
+        if room not in self.rooms.keys():
+            # try to register the room in the lookup server db.
+            # fails if it's already created in another register server
+            if not self.register_room_in_ls(room):
+                raise RoomRegistrationFailed
+
         try:
             # Round robin distribution of rooms
             server = self._server_order[0]
@@ -242,6 +258,7 @@ class NameServer:
 
             if len(self.rooms[room]) <= 0:
                 del self.rooms[room]  # if the room has no more servers, close
+                self.remove_room_from_ls(room)
                 print("ROOM: closed room '{0}', no longer on any server".format(room, server))
             else:
                 self.servers[server].close_room(room)
@@ -282,6 +299,21 @@ class NameServer:
 
             print("SERVER: refreshed the servers")
 
+    def register_self_in_ls(self):
+        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
+
+    def register_room_in_ls(self, room):
+        response = post('{0}/register_room'.format(self.lookup_server_url),
+                        data={'room_id': room, 'uri': self.uri})
+        if response.text == 'OK':
+            return True
+        else:
+            print(response.text)
+            return False
+
+    def remove_room_from_ls(self, room):
+        post('{0}/remove_room'.format(self.lookup_server_url), data={'room_id': room})
+
 
 # noinspection PyPep8Naming
 class RequestHandler(BaseHTTPRequestHandler):
@@ -315,10 +347,12 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = NameServer(int(arguments['--r']))  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'http://selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
+    name_server.uri = uri
+    name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:
         file.write(str(uri))

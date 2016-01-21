@@ -16,7 +16,7 @@ from requests import post
 from chat_room import ChatRoom
 from client_id import ClientId
 from message import Message
-from name_server import NameServer, InvalidIdError
+from name_server import RegisterServer, InvalidIdError
 from room_id import RoomId
 from docopt import docopt
 
@@ -83,7 +83,7 @@ class ChatServer:
         self.room_server_uris = {}  # type: dict[RoomId: set[Pyro4.URI]]
 
         self.uri = None  # type: Pyro4.URI
-        self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
+        self.name_server = Pyro4.Proxy(name_server_uri)  # type: RegisterServer
 
     def register(self, room_id: RoomId, client_id: ClientId, client_uri: Pyro4.URI, nickname: str = None):
         """

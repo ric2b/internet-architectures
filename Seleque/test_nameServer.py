@@ -1,11 +1,11 @@
 from unittest import TestCase
-from name_server import NameServer, ServerInfo, RoomInfo
+from name_server import RegisterServer, ServerInfo, RoomInfo
 
 
 class TestNameServer(TestCase):
 
     def setUp(self):
-        self.name_server = NameServer(4)
+        self.name_server = RegisterServer(4)
 
     def test_register_server(self):
         self.name_server.register_server('127.0.0.1:9090')

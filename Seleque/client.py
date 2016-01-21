@@ -6,9 +6,11 @@ import Pyro4
 from chat_server import ChatServer
 from client_id import ClientId
 from message import Message
-from name_server import NameServer, InvalidIdError
+from name_server import RegisterServer, InvalidIdError, RoomRegistrationFailed
 from room_id import RoomId
 from timed_event import TimedEvent
+from requests import get, post
+from random import randint
 
 
 class StoppedException(Exception):
@@ -21,14 +23,16 @@ class Client:
     Implements all the clients actions and monitors its state.
     """
 
-    def __init__(self, name_server_uri):
+    def __init__(self, lookup_server_url):
 
         self.id = None  # type: ClientId
         self.room_id = None
         self.server = None
         self.server_down = False
         self.server_uri = None
-        self.name_server = Pyro4.Proxy(name_server_uri)  # type: NameServer
+        self.lookup_server_url = lookup_server_url
+        self.register_server_uri = None
+        self.register_server = None
         self.watchdog = TimedEvent(timeout=15, loop=True, user_handler=self.ping_server)
 
         # messages queue
@@ -47,6 +51,24 @@ class Client:
         self.to_stop = False
 
     def join_room(self, room_id: RoomId, nickname: str):
+        done = False
+        while not done:
+            # request the register server uri from the lookup server
+            response = post('{0}/join_room'.format(self.lookup_server_url), data={'room_id': room_id})
+            self.register_server_uri = response.text
+
+            # connect to the register server and join the room
+            try:
+                self.register_server = Pyro4.Proxy(self.register_server_uri)  # type: RegisterServer
+            except Pyro4.errors.PyroError:
+                print('failed connecting to {}, reporting to LS'.format(self.register_server_uri))
+            try:
+                self._join_room_internal(room_id, nickname)
+                done = True
+            except RoomRegistrationFailed:  # the register server can't create the room :(
+                print("server {} couldn't create the room".format(self.register_server_uri))
+
+    def _join_room_internal(self, room_id: RoomId, nickname: str):
         """
         Joins a room with the given nickname.
 
@@ -57,7 +79,7 @@ class Client:
         while not joined_successfully:
             # requests a server URI and a client id from the name server
             try:
-                client_id, server_uri = self.name_server.join_room(room_id)
+                client_id, server_uri = self.register_server.join_room(room_id)
             except LookupError:
                 # retry to register
                 continue
@@ -101,20 +123,23 @@ class Client:
         try:
             self.server.leave_room(self.room_id, self.id)
         except Pyro4.errors.CommunicationError:
-            self.name_server.remove_server(self.server_uri)
+            self.register_server.remove_server(self.server_uri)
         print("left room '{0}' on server '{1}'".format(self.room_id, self.server_uri))
         self.id = None
         self.room_id = None
         self.server = None
         self.server_down = False
         self.server_uri = None
+        self.register_server_uri = None
+        self.register_server = None
         self.watchdog.stop()
 
     def get_rooms(self):
-        return self.name_server.list_rooms()
+        response = get('{0}/active_rooms'.format(self.lookup_server_url))
+        return response.text.splitlines()
 
     def get_nickname(self, client_id: ClientId):
-        return self.name_server.get_nickname(client_id)
+        return self.register_server.get_nickname(client_id)
 
     def send_message(self, message: Message):
         """
@@ -133,7 +158,7 @@ class Client:
             self.message_queue.append(message)
         # indicate that there is a new message
         self.semaphore.release()
-        self.watchdog.reset()
+        self.watchdog.reset(10+randint(0, 10))
 
     def receive_message(self):
         """
