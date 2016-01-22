@@ -128,8 +128,10 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class ClientCountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        register_server = urllib2.urlopen("http://127.0.0.1:8081/givemetheroomregisterserver/{}".format(
-                room_id)).read()
+        lookup_server_url = 'http://127.0.0.1:9080/'
+        query_url = lookup_server_url + 'givemetheroomregisterserver/' + room_id
+        register_server = urllib2.urlopen(query_url).read()
+
         if register_server != '':
             request_address = "{0}/{1}".format(register_server, room_id)
             response = urllib2.urlopen(request_address)

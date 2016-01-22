@@ -339,7 +339,8 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = RegisterServer(int(arguments['--r']), 'http://127.0.0.1:8081')  # argument --r defaults to 2 when none is specified
+    lookup_server_url = 'http://127.0.0.1:9080'
+    name_server = RegisterServer(int(arguments['--r']), lookup_server_url)  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')

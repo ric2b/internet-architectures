@@ -149,7 +149,9 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZER = 'pickle'
 
     app = QtGui.QApplication(sys.argv)
-    client_gui = ClientGui(Client('http://127.0.0.1:8081'))
+
+    lookup_server_url = 'http://127.0.0.1:9080'
+    client_gui = ClientGui(Client(lookup_server_url))
     client_gui.hide()
     client_gui.show()
     sys.exit(app.exec_())
