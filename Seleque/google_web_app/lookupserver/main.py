@@ -63,6 +63,13 @@ class JoinRoom(webapp2.RequestHandler):
             server = get_random_register_server()
             self.response.out.write(server.key().name())
 
+class GiveMeTheRoomRegisterServer(webapp2.RequestHandler):
+    def get(self, room_id):
+        entity = RoomToServer.get_by_key_name(room_id)
+        if entity:
+            self.response.out.write(entity.uri)
+        else:
+            self.response.out.write('')
 
 class RemoveRoom(webapp2.RequestHandler):
     def post(self):
@@ -92,6 +99,7 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/register_rs', handler=RegisterNewRegisterServer),
     webapp2.Route('/register_room', handler=RegisterRoom),
     webapp2.Route('/join_room', handler=JoinRoom),
+    webapp2.Route('/givemetheroomregisterserver/<room_id>', handler=GiveMeTheRoomRegisterServer),
     webapp2.Route('/remove_room', handler=RemoveRoom),
     webapp2.Route('/all', handler=AllServers),
     webapp2.Route('/active_rooms', handler=ActiveRooms)
