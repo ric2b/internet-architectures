@@ -278,25 +278,12 @@ class RegisterServer:
             servers_to_remove = []
             for server in self.servers.values():
                 try:
-                    server.refresh_connection()
+                    server.ping()
                 except Pyro4.errors.CommunicationError:
                     servers_to_remove.append(server)
 
             for server in servers_to_remove:
-                self._server_order.remove(server.server_uri)
-
-                for room in self.servers[server.server_uri].rooms:  # for each room served by the server...
-                    self.rooms[room].remove(server.server_uri)  # remove the server from the room's list
-                    if self.rooms[room]:
-                        for server_uri in self.rooms[room]:
-                            self.servers[server].unshare_room(room, server_uri)
-                    else:
-                        self.rooms.pop(room)
-                        print("ROOM: closed room '{0}', no longer on any server"
-                              .format(room, server.server_uri))
-
-                self.servers.pop(server.server_uri)
-                print("SERVER: removed server '%s'" % server.server_uri)
+                self.remove_server(server)
 
             print("SERVER: refreshed the servers")
 
