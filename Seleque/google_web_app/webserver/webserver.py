@@ -116,7 +116,7 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class ClientCountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        register_server = urllib2.urlopen("http://selequelookup.appspot.com/GiveMeTheRoomRegisterServer/{}".format(room_id))
+        register_server = urllib2.urlopen("http://127.0.0.1:9080/GiveMeTheRoomRegisterServer/{}".format(room_id))
         if register_server:
             response = urllib2.urlopen("{}/{}".format(response.read(), room_id))
             self.response.write(response.read())

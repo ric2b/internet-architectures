@@ -301,11 +301,11 @@ class RegisterServer:
             print("SERVER: refreshed the servers")
 
     def register_self_in_ls(self):
-        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri, 'http_address': self.http_address})
+        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
 
     def register_room_in_ls(self, room):
         response = post('{0}/register_room'.format(self.lookup_server_url),
-                        data={'room_id': room, 'uri': self.uri})
+                        data={'room_id': room, 'uri': self.uri, 'http_address': self.http_address})
         if response.text == 'OK':
             return True
         else:
@@ -348,7 +348,7 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = RegisterServer(int(arguments['--r']), 'http://selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'http://127.0.0.1:9080')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
