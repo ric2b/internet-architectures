@@ -152,7 +152,7 @@ if __name__ == "__main__":
         name_server_uri = file.readline()
 
     app = QtGui.QApplication(sys.argv)
-    client_gui = ClientGui(Client('http://selequelookup.appspot.com'))
+    client_gui = ClientGui(Client('http://127.0.0.1:9080'))
     client_gui.hide()
     client_gui.show()
     sys.exit(app.exec_())

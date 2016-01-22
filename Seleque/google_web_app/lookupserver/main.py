@@ -10,6 +10,7 @@ class RegisterServer(db.Model):
 
 class RoomToServer(db.Model):
     uri = db.StringProperty(required=True)
+    http_address = db.StringProperty(required=True)
 
 
 class RegisterNewRegisterServer(webapp2.RequestHandler):
@@ -22,11 +23,12 @@ class RegisterRoom(webapp2.RequestHandler):
     def post(self):
         room_id = self.request.get('room_id')
         uri = self.request.get('uri')
+        http_address = self.request.get('http_address')
 
         committed = False
         while not committed:
             try:
-                result = self.register_room(room_id, uri)
+                result = self.register_room(room_id, uri, http_address)
                 committed = True
             except Exception as error:
                 logging.info(error)
@@ -34,10 +36,10 @@ class RegisterRoom(webapp2.RequestHandler):
         self.response.out.write(result)
 
     @db.transactional
-    def register_room(self, room_id, uri):
+    def register_room(self, room_id, uri, http_address):
         if not RoomToServer.get_by_key_name(room_id):
             # store the new uri
-            new_rs = RoomToServer(key_name=room_id, uri=uri)
+            new_rs = RoomToServer(key_name=room_id, uri=uri, http_address=http_address)
             new_rs.put()
 
             return 'OK'
@@ -62,6 +64,15 @@ class JoinRoom(webapp2.RequestHandler):
         else:
             server = get_random_register_server()
             self.response.out.write(server.key().name())
+
+
+class GiveMeTheRoomRegisterServer(webapp2.RequestHandler):
+    def get(self, room_id):
+        entity = RoomToServer.get_by_key_name(room_id)
+        if entity:
+            self.response.out.write(entity.http_address)
+        else:
+            self.response.out.write('')
 
 
 class RemoveRoom(webapp2.RequestHandler):
@@ -92,6 +103,7 @@ app = webapp2.WSGIApplication([
     webapp2.Route('/register_rs', handler=RegisterNewRegisterServer),
     webapp2.Route('/register_room', handler=RegisterRoom),
     webapp2.Route('/join_room', handler=JoinRoom),
+    webapp2.Route('/givemetheroomregisterserver/<room_id>', handler=GiveMeTheRoomRegisterServer),
     webapp2.Route('/remove_room', handler=RemoveRoom),
     webapp2.Route('/all', handler=AllServers),
     webapp2.Route('/active_rooms', handler=ActiveRooms)

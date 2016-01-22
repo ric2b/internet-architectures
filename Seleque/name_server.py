@@ -79,6 +79,7 @@ class RegisterServer:
         self.lock = threading.Lock()
 
         self.uri = None
+        self.http_address = None
         self.lookup_server_url = lookup_server_url
 
     def register_server(self, server: Pyro4.URI):
@@ -304,7 +305,7 @@ class RegisterServer:
 
     def register_room_in_ls(self, room):
         response = post('{0}/register_room'.format(self.lookup_server_url),
-                        data={'room_id': room, 'uri': self.uri})
+                        data={'room_id': room, 'uri': self.uri, 'http_address': self.http_address})
         if response.text == 'OK':
             return True
         else:
@@ -318,15 +319,16 @@ class RegisterServer:
 # noinspection PyPep8Naming
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # send code 200 response
-        self.send_response(200)
-        # send header first
-        self.send_header('Content-type', 'text')
-        self.end_headers()
-        # send client count
         try:
             room_id = RoomId(self.path[1:])
-            self.wfile.write(str(name_server.room_clients[room_id]).encode())
+            count = name_server.room_clients[room_id]
+            # send code 200 response
+            self.send_response(200)
+            # send header first
+            self.send_header('Content-type', 'text')
+            self.end_headers()
+            # send client count
+            self.wfile.write(str(count).encode())
             self.wfile.write(str(" clients in room '{}'".format(room_id)).encode())
         except KeyError:
             self.send_error(404, 'room not found')
@@ -347,11 +349,12 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = RegisterServer(int(arguments['--r']), 'http://selequelookup.appspot.com')  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'http://127.0.0.1:9080')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
     name_server.uri = uri
+    name_server.http_address = 'http://127.0.0.1:8088'
     name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:

@@ -116,8 +116,13 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class ClientCountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        response = urllib2.urlopen("http://127.0.0.1:8088/{}".format(room_id))
-        self.response.write(response.read())
+        register_server = urllib2.urlopen("http://127.0.0.1:9080/givemetheroomregisterserver/{}".format(room_id)).read()
+        if register_server != '':
+            request_address = "{0}/{1}".format(register_server, room_id)
+            response = urllib2.urlopen(request_address)
+            self.response.write(response.read())
+        else:
+            self.response.write('404')
 
 
 class MainHandler(webapp2.RequestHandler):
