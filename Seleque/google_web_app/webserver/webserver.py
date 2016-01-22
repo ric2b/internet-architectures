@@ -6,6 +6,7 @@ import counters as counters
 from google.appengine.ext.webapp import template
 import urllib2
 
+
 def get_room_messages(room_id, start_date=None, end_date=None):
     """
     Retrieves the all the messages in a room.
@@ -26,8 +27,11 @@ def get_room_messages(room_id, start_date=None, end_date=None):
                            "AND date_time <= DATETIME(:end_year, :end_month, :end_day, 23, 59, 59)"
                            "ORDER BY date_time DESC",
                            room=room.key(),
-                           start_year=start_date.year, start_month=start_date.month, start_day=start_date.day,
-                           end_year=end_date.year, end_month=end_date.month, end_day=end_date.day)
+                           start_year=start_date.year,
+                           start_month=start_date.month,
+                           start_day=start_date.day,
+                           end_year=end_date.year, end_month=end_date.month,
+                           end_day=end_date.day)
 
     return messages
 
@@ -57,7 +61,8 @@ class AddMessage(webapp2.RequestHandler):
         room = Room.get_or_insert(room_id)
 
         # store the new message
-        new_message = Message(text=text, author=author, nickname=author, parent=room)
+        new_message = Message(text=text, author=author, nickname=author,
+                              parent=room)
         new_message.put()
 
         counters.increment(room_id)
@@ -70,7 +75,8 @@ class AddMessage(webapp2.RequestHandler):
 
         room = Room.get_or_insert(room_id)
 
-        new_message = Message(text=text, author=sender_id, nickname=nickname, parent=room)
+        new_message = Message(text=text, author=sender_id, nickname=nickname,
+                              parent=room)
         new_message.put()
         counters.increment(room_id)
 
@@ -78,9 +84,10 @@ class AddMessage(webapp2.RequestHandler):
 class CountHandler(webapp2.RequestHandler):
     def get(self, room_id):
         if Room.get_by_key_name([room_id])[0]:
-            self.response.write("message count = %s" % (counters.get_count(room_id),))    
+            self.response.write(
+                "message count = %s" % (counters.get_count(room_id),))
         else:
-            not_found_room(self.response, room_id)        
+            not_found_room(self.response, room_id)
 
 
 class MessagesHandler(webapp2.RequestHandler):
@@ -103,12 +110,17 @@ class MessagesHandler(webapp2.RequestHandler):
 
         try:
             messages = get_room_messages(room_id, start_date, end_date)
-            self.response.write("<h1>Messages from %s to %s:</h1>" % (start_date.date(), end_date.date()))
+            self.response.write("<h1>Messages from %s to %s:</h1>" % (
+            start_date.date(), end_date.date()))
             self.response.write("""<table style="width:60%">""")
-            self.response.write("<tr><td>Message</td><td>Author nickname</td><td>Author id</td><td>Received on</td></tr>")
+            self.response.write(
+                "<tr><td>Message</td><td>Author nickname</td><td>Author id</td><td>Received on</td></tr>")
             for message in messages:
-                self.response.write("<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (message.text, message.nickname, message.author, message.date_time))
-                
+                self.response.write(
+                    "<tr><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (
+                    message.text, message.nickname, message.author,
+                    message.date_time))
+
             self.response.write("""</table>""")
         except AttributeError:
             not_found_room(self.response, room_id)
@@ -116,7 +128,8 @@ class MessagesHandler(webapp2.RequestHandler):
 
 class ClientCountHandler(webapp2.RequestHandler):
     def get(self, room_id):
-        register_server = urllib2.urlopen("http://127.0.0.1:9080/givemetheroomregisterserver/{}".format(room_id)).read()
+        register_server = urllib2.urlopen("http://127.0.0.1:8081/givemetheroomregisterserver/{}".format(
+                room_id)).read()
         if register_server != '':
             request_address = "{0}/{1}".format(register_server, room_id)
             response = urllib2.urlopen(request_address)
@@ -129,10 +142,14 @@ class MainHandler(webapp2.RequestHandler):
     def get(self):
         self.response.write(template.render('index.html', {}))
 
+
 app = webapp2.WSGIApplication([
-    webapp2.Route('/<room_id>/messagecount', handler=CountHandler, name='room_id'),
-    webapp2.Route('/<room_id>/messages', handler=MessagesHandler, name='room_id'),
+    webapp2.Route('/<room_id>/messagecount', handler=CountHandler,
+                  name='room_id'),
+    webapp2.Route('/<room_id>/messages', handler=MessagesHandler,
+                  name='room_id'),
     ('/', MainHandler),
     webapp2.Route('/<room_id>/addmessage', handler=AddMessage, name='room_id'),
-    webapp2.Route('/<room_id>/clientcount', handler=ClientCountHandler, name='room_id')
+    webapp2.Route('/<room_id>/clientcount', handler=ClientCountHandler,
+                  name='room_id')
 ], debug=True)

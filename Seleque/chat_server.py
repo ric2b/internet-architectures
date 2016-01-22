@@ -1,7 +1,7 @@
 """Chat Server.
 
 Usage:
-  chat_server.py [ --webserver=<webserver-url> | --uri=<nameserver-uri> | --file=<file>]
+  chat_server.py [ --webserver=<webserver-url> --uri=<nameserver-uri> --file=<file>]
   chat_server.py (-h | --help)
 
 Options:
@@ -213,7 +213,8 @@ class ChatServer:
         for server_uri in new_servers_uris:
             self.servers[server_uri] = Pyro4.Proxy(server_uri)
 
-        print("ROOM: now sharing room '{0}' with '{1}'".format(room_id, new_servers_uris))
+        uris = [str(uri) for uri in new_servers_uris]
+        print("ROOM: now sharing room '{0}' with '{1}'".format(room_id, uris))
 
     def unshare_room(self, room_id: RoomId, server_uri: Pyro4.URI):
         """

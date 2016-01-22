@@ -148,11 +148,8 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    with open("nameserver_uri.txt") as file:
-        name_server_uri = file.readline()
-
     app = QtGui.QApplication(sys.argv)
-    client_gui = ClientGui(Client('http://127.0.0.1:9080'))
+    client_gui = ClientGui(Client('http://127.0.0.1:8081'))
     client_gui.hide()
     client_gui.show()
     sys.exit(app.exec_())

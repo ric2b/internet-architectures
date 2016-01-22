@@ -54,6 +54,9 @@ class ServerInfo:
     def unshare_room(self, room_id: RoomId, *servers: Pyro4.URI):
         self._server.unshare_room(room_id, *servers)
 
+    def ping(self):
+        self._server.ping()
+
     def refresh_connection(self):
         self._server.refresh_connection()
 
@@ -285,7 +288,7 @@ class RegisterServer:
             for server in servers_to_remove:
                 self.remove_server(server)
 
-            print("SERVER: refreshed the servers")
+            # print("SERVER: refreshed the servers")
 
     def register_self_in_ls(self):
         post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
@@ -336,12 +339,12 @@ if __name__ == "__main__":
     Pyro4.config.SERIALIZERS_ACCEPTED = ['pickle']
     Pyro4.config.SERIALIZER = 'pickle'
 
-    name_server = RegisterServer(int(arguments['--r']), 'http://127.0.0.1:9080')  # argument --r defaults to 2 when none is specified
+    name_server = RegisterServer(int(arguments['--r']), 'http://127.0.0.1:8081')  # argument --r defaults to 2 when none is specified
 
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
     name_server.uri = uri
-    name_server.http_address = 'http://127.0.0.1:8088'
+    name_server.http_address = 'http://{}:{}'.format(http_address[0], http_address[1])
     name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:
