@@ -79,6 +79,7 @@ class RegisterServer:
         self.lock = threading.Lock()
 
         self.uri = None
+        self.http_address = None
         self.lookup_server_url = lookup_server_url
 
     def register_server(self, server: Pyro4.URI):
@@ -300,7 +301,7 @@ class RegisterServer:
             print("SERVER: refreshed the servers")
 
     def register_self_in_ls(self):
-        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri})
+        post('{0}/register_rs'.format(self.lookup_server_url), data={'uri': self.uri, 'http_address': self.http_address})
 
     def register_room_in_ls(self, room):
         response = post('{0}/register_room'.format(self.lookup_server_url),
@@ -352,6 +353,7 @@ if __name__ == "__main__":
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
     name_server.uri = uri
+    name_server.http_address = 'http://' + '93.108.44.55:8088'
     name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:
