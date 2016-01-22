@@ -319,15 +319,16 @@ class RegisterServer:
 # noinspection PyPep8Naming
 class RequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
-        # send code 200 response
-        self.send_response(200)
-        # send header first
-        self.send_header('Content-type', 'text')
-        self.end_headers()
-        # send client count
         try:
             room_id = RoomId(self.path[1:])
-            self.wfile.write(str(name_server.room_clients[room_id]).encode())
+            count = name_server.room_clients[room_id]
+            # send code 200 response
+            self.send_response(200)
+            # send header first
+            self.send_header('Content-type', 'text')
+            self.end_headers()
+            # send client count
+            self.wfile.write(str(count).encode())
             self.wfile.write(str(" clients in room '{}'".format(room_id)).encode())
         except KeyError:
             self.send_error(404, 'room not found')
@@ -353,7 +354,7 @@ if __name__ == "__main__":
     daemon = Pyro4.Daemon()
     uri = daemon.register(name_server, 'name_server')
     name_server.uri = uri
-    name_server.http_address = 'http://' + '93.108.44.55:8088'
+    name_server.http_address = 'http://127.0.0.1:8088'
     name_server.register_self_in_ls()
 
     with open("nameserver_uri.txt", mode='w') as file:
